@@ -1,0 +1,68 @@
+.interaction-panel {
+  background-color: #f5f5f5;
+  padding: 15px;
+  border-radius: 8px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.form-group select,
+.form-group input[type="text"] {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.form-group input[type="range"] {
+  width: calc(100% - 30px);
+  vertical-align: middle;
+}
+
+.form-group span {
+  display: inline-block;
+  width: 25px;
+  text-align: right;
+  margin-left: 5px;
+}
+
+.help-text {
+  color: #f44336;
+  margin-bottom: 15px;
+  font-size: 14px;
+  min-height: 20px;
+}
+
+.interact-button {
+  width: 100%;
+  padding: 10px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.interact-button:hover {
+  background-color: #45a049;
+}
+
+.interact-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}

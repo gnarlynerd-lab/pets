@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: dks_root_password
+      MYSQL_DATABASE: dks_petworld
+      MYSQL_USER: dks_user
+      MYSQL_PASSWORD: dks_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+    command: --default-authentication-plugin=mysql_native_password
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend
+      - ./tests:/app/tests
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - MYSQL_HOST=mysql
+      - MYSQL_DATABASE=dks_hospital
+      - MYSQL_USER=dks_user
+      - MYSQL_PASSWORD=dks_password
+    depends_on:
+      - redis
+      - mysql
+    command: python -m backend.main
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_BACKEND_URL=http://localhost:8000
+    depends_on:
+      - backend
+
+volumes:
+  redis_data:
+  mysql_data:
