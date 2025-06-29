@@ -260,128 +260,149 @@ async def interact_with_pet(interaction: Dict[str, Any]):
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for real-time updates"""
+    """WebSocket endpoint for real-time communication with frontend"""
+    global connected_clients, pet_model
+    
     await websocket.accept()
     connected_clients.add(websocket)
+    logger.info(f"WebSocket client connected. Total clients: {len(connected_clients)}")
     
     try:
-        while True:
-            # Keep connection alive and handle any client messages
-            data = await websocket.receive_text()
-            message = json.loads(data)
+        # Send initial connection confirmation
+        await websocket.send_text(json.dumps({
+            "type": "connection_established",
+            "message": "Connected to DKS Digital Pet System",
+            "timestamp": str(asyncio.get_event_loop().time())
+        }))
+        
+        # Send initial pet data if available
+        if pet_model:
+            pets_data = []
+            for agent in pet_model.schedule.agents:
+                if hasattr(agent, 'unique_id'):
+                    pet_data = {
+                        "id": agent.unique_id,
+                        "position": agent.pos,
+                        "traits": agent.traits,
+                        "attention": agent.attention_level,
+                        "health": agent.health,
+                        "mood": agent.mood,
+                        "energy": agent.energy,
+                        "stage": agent.development_stage,
+                        "needs": agent.needs
+                    }
+                    pets_data.append(pet_data)
             
-            if message.get("type") == "ping":
-                await websocket.send_text(json.dumps({"type": "pong"}))
-            elif message.get("type") == "interact":
-                # Handle interaction requests via websocket
-                user_id = message.get("user_id", f"user_{uuid.uuid4().hex[:8]}")
-                pet_id = message.get("pet_id")
-                interaction_type = message.get("interaction_type")
-                content = message.get("content", {})
-                
-                if pet_id and interaction_type and pet_model:
-                    pet_model.add_user_interaction(user_id, pet_id, interaction_type, content)
-                    await websocket.send_text(json.dumps({
-                        "type": "interaction_response",
-                        "status": "success",
-                        "request_id": message.get("request_id")
-                    }))
-                else:
-                    await websocket.send_text(json.dumps({
-                        "type": "interaction_response",
-                        "status": "error",
-                        "message": "Invalid interaction request",
-                        "request_id": message.get("request_id")
-                    }))
-                
-    except WebSocketDisconnect:
-        connected_clients.remove(websocket)
-
-
-@app.websocket("/ws/environment")
-async def environment_websocket(websocket: WebSocket):
-    """WebSocket endpoint for real-time environment updates"""
-    await websocket.accept()
-    
-    try:
-        # Send initial environment state
-        if pet_model and hasattr(pet_model, "environment"):
-            env_state = pet_model.environment.get_state()
             await websocket.send_text(json.dumps({
-                "type": "environment_update",
-                "data": {
-                    "time_of_day": env_state["time_of_day"],
-                    "day_of_week": env_state["day_of_week"],
-                    "weather": env_state["weather"],
-                    "ambient_energy": env_state["ambient_energy"],
-                    "social_atmosphere": env_state["social_atmosphere"],
-                    "novelty_level": env_state["novelty_level"]
-                }
+                "type": "simulation_update",
+                "pets": pets_data,
+                "step": pet_model.schedule.steps,
+                "timestamp": str(asyncio.get_event_loop().time())
             }))
         
+        # Listen for messages from client
         while True:
-            # Wait for client to request updates
             data = await websocket.receive_text()
-            message = json.loads(data)
-            
-            if message.get("type") == "get_environment":
-                if pet_model and hasattr(pet_model, "environment"):
-                    env_state = pet_model.environment.get_state()
-                    await websocket.send_text(json.dumps({
-                        "type": "environment_update",
-                        "data": {
-                            "time_of_day": env_state["time_of_day"],
-                            "day_of_week": env_state["day_of_week"],
-                            "weather": env_state["weather"],
-                            "ambient_energy": env_state["ambient_energy"],
-                            "social_atmosphere": env_state["social_atmosphere"],
-                            "novelty_level": env_state["novelty_level"],
-                            "regions": {
-                                k: {
-                                    "name": v["name"], 
-                                    "pet_count": len(v.get("current_pets", [])),
-                                    "resources": v.get("resources", {})
-                                } for k, v in env_state["regions"].items()
-                            },
-                            "active_events": env_state["active_events"]
-                        }
-                    }))
-            elif message.get("type") == "add_event":
-                # Allow clients to trigger events in the environment
-                event_type = message.get("event_type")
-                duration = message.get("duration", 10)
-                params = message.get("params", {})
+            try:
+                message = json.loads(data)
                 
-                if event_type and pet_model and hasattr(pet_model, "environment"):
-                    result = pet_model.environment.add_event(event_type, duration, **params)
+                if message.get("type") == "ping":
+                    # Respond to ping with pong
                     await websocket.send_text(json.dumps({
-                        "type": "event_response",
-                        "status": "success" if result.get("success") else "error",
-                        "event_id": result.get("event_id"),
-                        "request_id": message.get("request_id")
+                        "type": "pong",
+                        "timestamp": str(asyncio.get_event_loop().time())
                     }))
+                
+                elif message.get("type") == "get_pets":
+                    # Send current pet data
+                    if pet_model:
+                        pets_data = []
+                        for agent in pet_model.schedule.agents:
+                            if hasattr(agent, 'unique_id'):
+                                pet_data = {
+                                    "id": agent.unique_id,
+                                    "position": agent.pos,
+                                    "traits": agent.traits,
+                                    "attention": agent.attention_level,
+                                    "health": agent.health,
+                                    "mood": agent.mood,
+                                    "energy": agent.energy,
+                                    "stage": agent.development_stage,
+                                    "needs": agent.needs
+                                }
+                                pets_data.append(pet_data)
+                        
+                        await websocket.send_text(json.dumps({
+                            "type": "pets_data",
+                            "pets": pets_data,
+                            "timestamp": str(asyncio.get_event_loop().time())
+                        }))
+                
+                elif message.get("type") == "interact_with_pet":
+                    # Handle pet interaction
+                    pet_id = message.get("pet_id")
+                    interaction_type = message.get("interaction_type", "attention")
+                    
+                    if pet_model and pet_id:
+                        pet = pet_model.get_pet_by_id(pet_id)
+                        if pet:
+                            # Simulate interaction based on type
+                            if interaction_type == "attention":
+                                pet.receive_attention(user_id="websocket_user", amount=10)
+                            elif interaction_type == "play":
+                                pet.needs["play"] = max(0, pet.needs["play"] - 20)
+                            elif interaction_type == "feed":
+                                pet.needs["hunger"] = max(0, pet.needs["hunger"] - 30)
+                            
+                            # Send updated pet data
+                            await websocket.send_text(json.dumps({
+                                "type": "pet_updated",
+                                "pet_id": pet_id,
+                                "pet_data": {
+                                    "id": pet.unique_id,
+                                    "attention": pet.attention_level,
+                                    "health": pet.health,
+                                    "mood": pet.mood,
+                                    "energy": pet.energy,
+                                    "needs": pet.needs
+                                },
+                                "timestamp": str(asyncio.get_event_loop().time())
+                            }))
+                
+            except json.JSONDecodeError:
+                logger.error(f"Invalid JSON received from WebSocket client: {data}")
+            except Exception as e:
+                logger.error(f"Error processing WebSocket message: {e}")
     
     except WebSocketDisconnect:
-        # Client disconnected
-        pass
+        logger.info("WebSocket client disconnected")
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+    finally:
+        if websocket in connected_clients:
+            connected_clients.remove(websocket)
+        logger.info(f"WebSocket client removed. Total clients: {len(connected_clients)}")
 
 
-async def broadcast_to_clients(data: dict):
-    """Broadcast data to all connected WebSocket clients"""
+async def broadcast_to_clients(message: dict):
+    """Broadcast message to all connected WebSocket clients"""
+    global connected_clients
+    
     if not connected_clients:
         return
     
-    message = json.dumps(data)
-    disconnected = set()
+    message_str = json.dumps(message)
+    disconnected_clients = set()
     
     for client in connected_clients:
         try:
-            await client.send_text(message)
-        except:
-            disconnected.add(client)
+            await client.send_text(message_str)
+        except Exception as e:
+            logger.error(f"Error sending to WebSocket client: {e}")
+            disconnected_clients.add(client)
     
     # Remove disconnected clients
-    connected_clients -= disconnected
+    connected_clients -= disconnected_clients
 
 
 async def run_simulation():

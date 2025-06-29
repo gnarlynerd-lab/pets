@@ -1,7 +1,9 @@
 """
 Pet Model - Main simulation environment for Digital Pet DKS system
 """
-import mesa
+from mesa import Model
+from mesa.time import RandomActivation
+import mesa.space
 import uuid
 import time
 import logging
@@ -14,7 +16,7 @@ from backend.agents.pet_environment import PetEnvironment
 logger = logging.getLogger(__name__)
 
 
-class PetModel(mesa.Model):
+class PetModel(Model):
     """
     Digital Pet model implementing DKS principles:
     - No centralized optimization
@@ -62,7 +64,7 @@ class PetModel(mesa.Model):
         
         # Set up Mesa components
         self.grid = mesa.space.MultiGrid(20, 20, True)  # Smaller grid for pets
-        self.schedule = mesa.time.RandomActivation(self)
+        self.schedule = RandomActivation(self)
         
         # Create pet agents
         self.create_pets()

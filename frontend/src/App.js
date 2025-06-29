@@ -16,9 +16,9 @@ function App() {
 
   useEffect(() => {
     // Connect to WebSocket
-    const ws = connectWebSocket(
-      process.env.REACT_APP_BACKEND_URL?.replace('http', 'ws') + '/ws' || 'ws://localhost:8000/ws'
-    );
+    const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+    const wsUrl = backendUrl.replace('http', 'ws') + '/ws';
+    const ws = connectWebSocket(wsUrl);
 
     ws.onopen = () => {
       console.log('Connected to DKS Digital Pet System backend');

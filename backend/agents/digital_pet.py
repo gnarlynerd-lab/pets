@@ -1,7 +1,7 @@
 """
 Digital Pet Base Class - Core entity for evolving digital pets
 """
-import mesa
+from mesa import Agent
 import uuid
 import time
 import json
@@ -17,7 +17,7 @@ from backend.agents.fep_cognitive_system import FEPCognitiveSystem
 logger = logging.getLogger(__name__)
 
 
-class DigitalPet(mesa.Agent):
+class DigitalPet(Agent):
     """
     Digital Pet that evolves based on human interaction and attention patterns.
     
@@ -40,9 +40,9 @@ class DigitalPet(mesa.Agent):
         self.last_interaction_time = time.time()
         
         # Evolution components
-        self.traits = initial_traits or self._generate_default_traits()
         self.trait_connections = defaultdict(float)  # How traits influence each other
         self.trait_evolution_rate = defaultdict(float)  # How quickly traits evolve
+        self.traits = initial_traits or self._generate_default_traits()
         
         # Memory systems - multi-level memory for learning
         self.episodic_memory = []  # Individual experiences/interactions
