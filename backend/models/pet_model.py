@@ -4,6 +4,8 @@ Pet Model - Main simulation environment for Digital Pet DKS system
 from mesa import Model
 from mesa.time import RandomActivation
 import mesa.space
+import numpy as np
+import random
 import uuid
 import time
 import logging
@@ -32,6 +34,9 @@ class PetModel(Model):
     
     def __init__(self, num_pets: int = 5, redis_manager=None, data_collector=None):
         super().__init__()
+        
+        # Initialize random number generator for Mesa framework
+        self.random = random.Random()
         
         # Model parameters
         self.num_pets = num_pets

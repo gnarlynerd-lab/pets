@@ -3,6 +3,7 @@ DKS Digital Pet System Main Application Entry Point
 """
 import asyncio
 import logging
+import time
 from typing import Optional, Dict, Any
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
@@ -256,6 +257,88 @@ async def interact_with_pet(interaction: Dict[str, Any]):
         return {"message": f"Interaction {interaction_type} with {pet_id} queued successfully"}
     else:
         return {"error": "Failed to queue interaction"}
+
+
+@app.post("/api/pets/emoji")
+async def emoji_interact_with_pet(interaction: Dict[str, Any]):
+    """Dedicated endpoint for emoji-based communication with pets"""
+    if not pet_model:
+        raise HTTPException(status_code=500, detail="Model not initialized")
+    
+    # Extract and validate parameters
+    user_id = interaction.get("user_id", f"user_{uuid.uuid4().hex[:8]}")
+    pet_id = interaction.get("pet_id")
+    emoji_message = interaction.get("emojis", "")
+    
+    if not pet_id:
+        raise HTTPException(status_code=400, detail="pet_id is required")
+    
+    if not emoji_message:
+        raise HTTPException(status_code=400, detail="emojis field is required")
+    
+    # Get the pet
+    pet = pet_model.get_pet_by_id(pet_id)
+    if not pet:
+        raise HTTPException(status_code=404, detail=f"Pet {pet_id} not found")
+    
+    try:
+        # Process emoji interaction directly through the pet
+        response_data = pet.receive_emoji_message(emoji_message, user_id)
+        
+        # Store interaction data in Redis for persistence
+        if redis_manager:
+            await redis_manager.store_interaction(
+                sender_id=user_id,
+                receiver_id=pet_id,
+                message_type='emoji_communication',
+                content={
+                    'user_emojis': emoji_message,
+                    'pet_response': response_data['emoji_response'],
+                    'timestamp': response_data['timestamp'],
+                    'surprise_level': response_data['surprise_level']
+                }
+            )
+        
+        # Add to model's interaction tracking
+        pet_model.add_user_interaction(user_id, pet_id, "emoji_communication", {
+            'user_emojis': emoji_message,
+            'pet_response': response_data['emoji_response']
+        })
+        
+        logger.info(f"Emoji interaction processed: {user_id} -> {pet_id} | {emoji_message} -> {response_data['emoji_response']}")
+        
+        return response_data
+        
+    except Exception as e:
+        logger.error(f"Error processing emoji interaction: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process emoji interaction: {str(e)}")
+
+
+@app.get("/api/pets/{pet_id}/emoji-stats")
+async def get_pet_emoji_stats(pet_id: str):
+    """Get emoji communication statistics for a specific pet"""
+    if not pet_model:
+        raise HTTPException(status_code=500, detail="Model not initialized")
+    
+    pet = pet_model.get_pet_by_id(pet_id)
+    if not pet:
+        raise HTTPException(status_code=404, detail=f"Pet {pet_id} not found")
+    
+    try:
+        stats = pet.get_emoji_communication_stats()
+        fep_emoji_stats = pet.fep_system.get_emoji_usage_stats()
+        
+        return {
+            'pet_id': pet_id,
+            'communication_stats': stats,
+            'fep_learning_stats': fep_emoji_stats,
+            'current_emoji_preferences': dict(pet.fep_system.emoji_preferences),
+            'timestamp': time.time()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting emoji stats for pet {pet_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get emoji stats: {str(e)}")
 
 
 @app.websocket("/ws")

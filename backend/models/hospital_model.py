@@ -2,6 +2,8 @@
 Hospital Model - Main simulation environment for DKS agent system
 """
 import mesa
+import numpy as np
+import random
 import uuid
 import time
 import logging
@@ -25,6 +27,9 @@ class HospitalModel(mesa.Model):
     def __init__(self, num_wards: int, num_staff: int, num_equipment: int, 
                  num_patients: int, redis_manager=None, data_collector=None):
         super().__init__()
+        
+        # Initialize random number generator for Mesa framework
+        self.random = random.Random()
         
         # Model parameters
         self.num_wards = num_wards

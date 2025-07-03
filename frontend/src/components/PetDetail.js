@@ -3,10 +3,28 @@ import './PetDetail.css';
 
 const PetDetail = ({ pet }) => {
   if (!pet) return <div className="pet-detail">No pet selected</div>;
+  
+  // Check if pet data is properly loaded
+  if (pet.mood === undefined || pet.health === undefined || pet.energy === undefined) {
+    return <div className="pet-detail">Loading pet data...</div>;
+  }
+  
+  // Ensure all required properties exist with defaults
+  const safePet = {
+    mood: pet.mood || 0,
+    health: pet.health || 0,
+    energy: pet.energy || 0,
+    attention: pet.attention || 0,
+    traits: pet.traits || {},
+    needs: pet.needs || {},
+    behavior_patterns: pet.behavior_patterns || {},
+    behavior_history: pet.behavior_history || [],
+    ...pet
+  };
 
   // Helper to render trait network
   const renderTraits = () => {
-    return Object.entries(pet.traits).map(([trait, value]) => (
+    return Object.entries(safePet.traits).map(([trait, value]) => (
       <div key={trait} className="trait-item">
         <div className="trait-name">{trait}</div>
         <div className="trait-bar-container">
@@ -22,7 +40,7 @@ const PetDetail = ({ pet }) => {
 
   // Helper to render needs status
   const renderNeeds = () => {
-    return Object.entries(pet.needs).map(([need, value]) => (
+    return Object.entries(safePet.needs).map(([need, value]) => (
       <div key={need} className="need-item">
         <div className="need-name">{formatNeedName(need)}</div>
         <div className="need-bar-container">
@@ -55,7 +73,7 @@ const PetDetail = ({ pet }) => {
   // Helper to render behavior patterns
   const renderBehaviorPatterns = () => {
     // Sort by activation threshold descending
-    const sortedBehaviors = Object.entries(pet.behavior_patterns)
+    const sortedBehaviors = Object.entries(safePet.behavior_patterns)
       .sort(([, valueA], [, valueB]) => valueB - valueA)
       .slice(0, 5); // Show top 5
 
@@ -78,13 +96,13 @@ const PetDetail = ({ pet }) => {
 
   // Helper to render recent behavior history
   const renderBehaviorHistory = () => {
-    if (!pet.behavior_history || pet.behavior_history.length === 0) {
+    if (!safePet.behavior_history || safePet.behavior_history.length === 0) {
       return <div className="empty-state">No recent behaviors</div>;
     }
 
     return (
       <ul className="behavior-history-list">
-        {pet.behavior_history.map((behavior, index) => (
+        {safePet.behavior_history.map((behavior, index) => (
           <li key={index} className="behavior-history-item">
             {formatBehaviorName(behavior.behavior)}
           </li>
@@ -108,9 +126,9 @@ const PetDetail = ({ pet }) => {
           <div className="vital-bar-container">
             <div 
               className="vital-bar" 
-              style={{ width: `${pet.health}%`, backgroundColor: getVitalColor(pet.health) }}
+              style={{ width: `${safePet.health}%`, backgroundColor: getVitalColor(safePet.health) }}
             ></div>
-            <span className="vital-value">{pet.health.toFixed(0)}%</span>
+            <span className="vital-value">{safePet.health.toFixed(0)}%</span>
           </div>
         </div>
         
@@ -119,9 +137,9 @@ const PetDetail = ({ pet }) => {
           <div className="vital-bar-container">
             <div 
               className="vital-bar" 
-              style={{ width: `${pet.energy}%`, backgroundColor: getVitalColor(pet.energy) }}
+              style={{ width: `${safePet.energy}%`, backgroundColor: getVitalColor(safePet.energy) }}
             ></div>
-            <span className="vital-value">{pet.energy.toFixed(0)}%</span>
+            <span className="vital-value">{safePet.energy.toFixed(0)}%</span>
           </div>
         </div>
         
@@ -130,9 +148,9 @@ const PetDetail = ({ pet }) => {
           <div className="vital-bar-container">
             <div 
               className="vital-bar" 
-              style={{ width: `${pet.mood}%`, backgroundColor: getVitalColor(pet.mood) }}
+              style={{ width: `${safePet.mood}%`, backgroundColor: getVitalColor(safePet.mood) }}
             ></div>
-            <span className="vital-value">{pet.mood.toFixed(0)}%</span>
+            <span className="vital-value">{safePet.mood.toFixed(0)}%</span>
           </div>
         </div>
         
@@ -141,9 +159,9 @@ const PetDetail = ({ pet }) => {
           <div className="vital-bar-container">
             <div 
               className="vital-bar" 
-              style={{ width: `${pet.attention}%`, backgroundColor: getVitalColor(pet.attention) }}
+              style={{ width: `${safePet.attention}%`, backgroundColor: getVitalColor(safePet.attention) }}
             ></div>
-            <span className="vital-value">{pet.attention.toFixed(0)}%</span>
+            <span className="vital-value">{safePet.attention.toFixed(0)}%</span>
           </div>
         </div>
       </div>

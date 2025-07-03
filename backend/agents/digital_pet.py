@@ -97,7 +97,7 @@ class DigitalPet(Agent):
         self.cognitive_system = ObservableCognitiveDevelopment(self.unique_id)
         
         # Free Energy Principle cognitive system - NEW
-        self.fep_system = FEPCognitiveSystem(state_size=10, action_size=5)
+        self.fep_system = FEPCognitiveSystem(state_size=15, action_size=8)
         
         # Current region in environment - NEW
         self.current_region_id = "central"  # Default starting region
@@ -1618,204 +1618,364 @@ class DigitalPet(Agent):
         
         return pet
     
-    def _update_fep_cognition(self, environment_state):
-        """
-        Update FEP-based cognitive system using Free Energy Principle approach.
-        
-        This method implements active inference via the PyMDP library:
-        1. Maps current pet state and environment to observations
-        2. Updates beliefs based on observations
-        3. Selects actions that minimize expected free energy
-        4. Updates the generative model based on outcomes
-        """
-        # Skip if environment is empty
-        if not environment_state:
-            return
-            
-        # 1. Map environment and pet state to observations for the FEP system
-        observation = self._map_state_to_observation(environment_state)
-        
-        # 2. Update beliefs based on observation
-        belief_update = self.fep_system.update_observation(observation)
-        surprise_level = belief_update.get("surprise", 0)
-        
-        # 3. Update cognitive development based on surprise levels
-        # High surprise means novel experiences that drive cognitive development
-        if surprise_level > 2.0:  # High surprise
-            self.cognitive_system.process_experience(
-                "novel_experience",
-                min(surprise_level / 5.0, 1.0),  # Normalize to 0-1
-                self.traits
-            )
-            
-            # Record in episodic memory
-            self.episodic_memory.append({
-                "type": "surprise",
-                "level": surprise_level,
-                "timestamp": time.time(),
-                "environment_context": environment_state.get("weather", "unknown")
-            })
-        
-        # 4. Set preferences based on current needs
-        goal_state = self._map_needs_to_goal_state()
-        
-        # 5. Select action using active inference to minimize expected free energy
-        action = self.fep_system.select_action(goal_state)
-        
-        # 6. Convert selected action to pet behavior if not already active
-        behavior = self._map_action_to_behavior(action)
-        
-        # Only add if not already present in active behaviors
-        if behavior and behavior not in self.active_behaviors:
-            self.active_behaviors.append(behavior)
-            
-            # Perform the behavior
-            behavior_dict = {
-                "type": behavior,
-                "intensity": 0.7,
-                "cause": "fep_inference",
-                "target": None
-            }
-            self.perform_behaviors([behavior_dict])
-        
-        # 7. Update the model based on outcome of last action
-        if hasattr(self, "_last_fep_state") and hasattr(self, "_last_fep_action"):
-            current_state = self._map_pet_state_to_index()
-            self.fep_system.update_model(
-                self._last_fep_state,
-                self._last_fep_action,
-                current_state,
-                observation
-            )
-        
-        # Store current state and action for next update
-        self._last_fep_state = self._map_pet_state_to_index()
-        self._last_fep_action = action
-        
-    def _map_state_to_observation(self, environment_state):
-        """
-        Map the current environment state and pet internal state to an observation index.
-        
-        Returns:
-            int: Index of the observation in the FEP system's observation space
-        """
-        # Create feature vector from environment and pet state
-        features = []
-        
-        # Environment features
-        if "weather" in environment_state:
-            weather_map = {"clear": 0, "cloudy": 1, "rainy": 2, "stormy": 3, "foggy": 4}
-            weather_idx = weather_map.get(environment_state["weather"], 0)
-            features.append(weather_idx)
-        else:
-            features.append(0)
-        
-        # Time of day (simplified to 4 periods)
-        if "time_of_day" in environment_state:
-            hour = environment_state["time_of_day"]
-            time_period = 0  # morning
-            if 12 <= hour < 18:
-                time_period = 1  # afternoon
-            elif 18 <= hour < 22:
-                time_period = 2  # evening
-            elif hour >= 22 or hour < 6:
-                time_period = 3  # night
-            features.append(time_period)
-        else:
-            features.append(0)
-        
-        # Pet's internal state - primary need
-        max_need = max(self.needs.items(), key=lambda x: x[1])
-        need_map = {"hunger": 0, "thirst": 1, "social": 2, "play": 3, "rest": 4}
-        features.append(need_map.get(max_need[0], 0))
-        
-        # Energy level (discretized)
-        energy_level = int(self.energy / 20)  # 0-5 scale
-        features.append(min(energy_level, 4))
-        
-        # Mood (discretized)
-        mood_level = int(self.mood / 20)  # 0-5 scale
-        features.append(min(mood_level, 4))
-        
-        # Map feature vector to single observation index using a hash function
-        # This is a simple approach - more sophisticated mappings are possible
-        observation = sum(f * (5 ** i) for i, f in enumerate(features)) % self.fep_system.n_observations
-        return observation
-        
-    def _map_needs_to_goal_state(self):
-        """
-        Map the pet's current needs to a goal state distribution.
-        
-        Returns:
-            np.ndarray: Probability distribution over preferred states
-        """
-        import numpy as np
-        
-        # Initialize uniform preferences
-        preferences = np.ones(self.fep_system.n_states) / self.fep_system.n_states
-        
-        # Identify the most pressing need
-        max_need = max(self.needs.items(), key=lambda x: x[1])
-        need_type, need_value = max_need
-        
-        # Only strongly prefer states that address high needs
-        if need_value > 60:
-            if need_type == "hunger":
-                preferences[0] = 3.0  # Prefer state that addresses hunger
-            elif need_type == "thirst":
-                preferences[1] = 3.0  # Prefer state that addresses thirst
-            elif need_type == "social":
-                preferences[2] = 3.0  # Prefer state for social interaction
-            elif need_type == "play":
-                preferences[3] = 3.0  # Prefer state for play
-            elif need_type == "rest":
-                preferences[4] = 3.0  # Prefer state for rest
-            
-            # Normalize to a proper probability distribution
-            preferences = preferences / np.sum(preferences)
-        
-        return preferences
+    # ===== EMOJI COMMUNICATION METHODS =====
     
-    def _map_pet_state_to_index(self):
+    def receive_emoji_message(self, emoji_sequence: str, user_id: str = "default") -> Dict[str, Any]:
         """
-        Map the pet's current state to a state index for the FEP model.
-        
-        Returns:
-            int: Index of the pet's current state
-        """
-        # Identify the most pressing need or most dominant state
-        max_need = max(self.needs.items(), key=lambda x: x[1])
-        need_type, need_value = max_need
-        
-        # Map need types to state indices
-        need_map = {
-            "hunger": 0, 
-            "thirst": 1, 
-            "social": 2, 
-            "play": 3, 
-            "rest": 4
-        }
-        
-        return need_map.get(need_type, 0)
-    
-    def _map_action_to_behavior(self, action):
-        """
-        Map an action index from the FEP system to a concrete pet behavior.
+        Process an incoming emoji message from a user and generate a response.
         
         Args:
-            action: Index of the selected action
+            emoji_sequence: String of emojis sent by the user
+            user_id: Identifier for the user sending the message
             
         Returns:
-            str: Name of the behavior to perform
+            response_data: Dict containing the pet's emoji response and state changes
         """
-        # Map action indices to behaviors
-        action_map = {
-            0: "seek_food",     # Address hunger
-            1: "seek_water",    # Address thirst
-            2: "social_gather", # Address social need
-            3: "playful",       # Address play need
-            4: "rest"           # Address rest need
+        logger.info(f"Pet {self.unique_id} received emoji message: {emoji_sequence} from user {user_id}")
+        
+        # Update last interaction time
+        self.last_interaction_time = time.time()
+        
+        # Store the interaction in memory
+        interaction_memory = {
+            'type': 'emoji_communication',
+            'timestamp': time.time(),
+            'user_id': user_id,
+            'user_emojis': emoji_sequence,
+            'context': self._get_current_context()
         }
         
-        # Return the mapped behavior or None if action is out of range
-        return action_map.get(action)
+        # Process through FEP cognitive system
+        fep_result = self.fep_system.process_emoji_interaction(
+            emoji_sequence, 
+            user_context={'user_id': user_id, 'pet_state': self.get_state()}
+        )
+        
+        # Update pet state based on FEP processing
+        self._apply_fep_effects(fep_result)
+        
+        # Generate behavioral response based on emoji interaction
+        behavioral_response = self._generate_emoji_behavioral_response(fep_result)
+        
+        # Update user memory
+        self._update_user_emoji_memory(user_id, emoji_sequence, fep_result['pet_response'])
+        
+        # Store complete interaction in memory
+        interaction_memory.update({
+            'pet_response': fep_result['pet_response'],
+            'surprise_level': fep_result['surprise_level'],
+            'behavioral_response': behavioral_response
+        })
+        self.episodic_memory.append(interaction_memory)
+        
+        # Prepare response data
+        response_data = {
+            'pet_id': self.unique_id,
+            'emoji_response': fep_result['pet_response'],
+            'behavioral_response': behavioral_response,
+            'mood_change': self._calculate_mood_change(fep_result),
+            'surprise_level': fep_result['surprise_level'],
+            'confidence': fep_result['response_confidence'],
+            'updated_state': self.get_state(),
+            'timestamp': time.time()
+        }
+        
+        logger.info(f"Pet {self.unique_id} responds with: {fep_result['pet_response']}")
+        return response_data
+    
+    def _get_current_context(self) -> Dict[str, Any]:
+        """Get current context for emoji interaction processing."""
+        return {
+            'mood': self.mood / 100.0,  # Normalize to 0-1 scale
+            'energy': self.energy / 100.0,
+            'health': self.health / 100.0,
+            'hunger': self.needs.get('hunger', 0.0) / 100.0,
+            'social': self.needs.get('social', 0.0) / 100.0,
+            'development_stage': self.development_stage,
+            'recent_interactions': len([m for m in self.episodic_memory[-10:] if m.get('type') == 'emoji_communication']),
+            'dominant_traits': self._get_dominant_traits()
+        }
+    
+    def _apply_fep_effects(self, fep_result: Dict[str, Any]):
+        """Apply effects from FEP processing to pet state."""
+        surprise_level = fep_result.get('surprise_level', 0.0)
+        
+        # High surprise can affect mood and energy
+        if surprise_level > 0.8:
+            self.mood = max(0.0, self.mood - 10.0)  # Decrease mood by 10 points
+            self.energy = max(0.0, self.energy - 5.0)  # Decrease energy by 5 points
+        elif surprise_level < 0.2:
+            # Low surprise (predictable, comforting interaction) improves mood
+            self.mood = min(100.0, self.mood + 5.0)  # Increase mood by 5 points
+        
+        # Social interaction always helps social need
+        self.needs['social'] = max(0.0, self.needs.get('social', 0.0) - 10.0)  # Reduce loneliness
+        
+        # Update traits based on interaction type
+        self._update_traits_from_emoji_interaction(fep_result)
+    
+    def _generate_emoji_behavioral_response(self, fep_result: Dict[str, Any]) -> str:
+        """Generate a behavioral response description based on emoji interaction."""
+        emoji_response = fep_result['pet_response']
+        surprise_level = fep_result['surprise_level']
+        
+        # Map emoji responses to behavioral descriptions
+        behavior_map = {
+            '❤️': "nuzzles affectionately and purrs contentedly",
+            '😊': "wags tail happily and bounces around",
+            '😔': "looks down sadly and seeks comfort",
+            '🎉': "jumps excitedly and does a little dance",
+            '😴': "yawns and curls up for a nap",
+            '🤔': "tilts head curiously and investigates",
+            '👍': "gives an approving chirp and stands proudly",
+            '👎': "huffs disapprovingly and turns away briefly",
+            '❓': "looks confused and tilts head from side to side",
+            '✨': "sparkles with joy and spins in a circle"
+        }
+        
+        base_behavior = behavior_map.get(emoji_response, "responds thoughtfully")
+        
+        # Modify behavior based on surprise level
+        if surprise_level > 0.7:
+            return f"looks startled, then {base_behavior}"
+        elif surprise_level < 0.3:
+            return f"calmly {base_behavior}"
+        else:
+            return base_behavior
+    
+    def _update_user_emoji_memory(self, user_id: str, user_emojis: str, pet_response: str):
+        """Update memory of user's emoji communication patterns."""
+        if 'emoji_patterns' not in self.user_memory[user_id]:
+            self.user_memory[user_id]['emoji_patterns'] = {
+                'favorite_emojis': defaultdict(int),
+                'response_history': [],
+                'successful_interactions': 0,
+                'total_interactions': 0
+            }
+        
+        patterns = self.user_memory[user_id]['emoji_patterns']
+        
+        # Track user's emoji usage
+        for emoji in user_emojis:
+            patterns['favorite_emojis'][emoji] += 1
+        
+        # Track interaction success (based on low surprise = good understanding)
+        patterns['total_interactions'] += 1
+        patterns['response_history'].append({
+            'user_emojis': user_emojis,
+            'pet_response': pet_response,
+            'timestamp': time.time()
+        })
+        
+        # Keep only recent history
+        if len(patterns['response_history']) > 20:
+            patterns['response_history'] = patterns['response_history'][-20:]
+    
+    def _calculate_mood_change(self, fep_result: Dict[str, Any]) -> float:
+        """Calculate how much the mood changed from this interaction."""
+        surprise_level = fep_result['surprise_level']
+        confidence = fep_result['response_confidence']
+        
+        # Positive mood change for successful (low surprise, high confidence) interactions
+        mood_change = (confidence - surprise_level) * 0.1
+        return max(-0.2, min(0.2, mood_change))  # Clamp between -0.2 and +0.2
+    
+    def _update_traits_from_emoji_interaction(self, fep_result: Dict[str, Any]):
+        """Update personality traits based on emoji interaction patterns."""
+        user_emojis = fep_result.get('user_emojis', '')
+        pet_response = fep_result.get('pet_response', '')
+        
+        # Analyze interaction type and update relevant traits
+        if any(emoji in user_emojis for emoji in ['❤️', '🥰', '😍', '🤗']):
+            # Affectionate interaction - increase sociability and affection
+            self.traits['sociability'] = min(1.0, self.traits['sociability'] + 0.01)
+            self.traits['affection'] = min(1.0, self.traits['affection'] + 0.01)
+        
+        if any(emoji in user_emojis for emoji in ['🎮', '⚽', '🎯']):
+            # Playful interaction - increase playfulness and energy
+            self.traits['playfulness'] = min(1.0, self.traits['playfulness'] + 0.01)
+            self.traits['energy_level'] = min(1.0, self.traits['energy_level'] + 0.005)
+        
+        if any(emoji in user_emojis for emoji in ['🤔', '❓', '📚']):
+            # Curious interaction - increase curiosity
+            self.traits['curiosity'] = min(1.0, self.traits['curiosity'] + 0.01)
+    
+    def get_emoji_communication_stats(self) -> Dict[str, Any]:
+        """Get statistics about emoji communication patterns."""
+        emoji_interactions = [m for m in self.episodic_memory if m.get('type') == 'emoji_communication']
+        
+        if not emoji_interactions:
+            return {'total_interactions': 0}
+        
+        # Analyze patterns
+        user_emojis_used = []
+        pet_responses_given = []
+        surprise_levels = []
+        
+        for interaction in emoji_interactions:
+            user_emojis_used.extend(list(interaction.get('user_emojis', '')))
+            pet_responses_given.append(interaction.get('pet_response', ''))
+            surprise_levels.append(interaction.get('surprise_level', 0.0))
+        
+        # Calculate statistics
+        stats = {
+            'total_interactions': len(emoji_interactions),
+            'average_surprise': sum(surprise_levels) / len(surprise_levels) if surprise_levels else 0,
+            'most_common_user_emoji': max(set(user_emojis_used), key=user_emojis_used.count) if user_emojis_used else None,
+            'most_common_pet_response': max(set(pet_responses_given), key=pet_responses_given.count) if pet_responses_given else None,
+            'recent_activity': len([i for i in emoji_interactions if time.time() - i.get('timestamp', 0) < 3600]),  # Last hour
+            'communication_effectiveness': 1.0 - (sum(surprise_levels) / len(surprise_levels)) if surprise_levels else 0.5
+        }
+        
+        return stats
+    
+    def interact_with_emoji(self, emoji_sequence: str, user_context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Process emoji interaction with the pet and return the pet's response.
+        
+        Args:
+            emoji_sequence: String of emojis from the user
+            user_context: Additional context about the interaction
+            
+        Returns:
+            interaction_result: Dictionary containing the interaction result
+        """
+        if user_context is None:
+            user_context = {}
+            
+        logger.info(f"Pet {self.unique_id} receiving emoji interaction: {emoji_sequence}")
+        
+        # Process through FEP cognitive system
+        fep_result = self.fep_system.process_emoji_interaction(emoji_sequence, user_context)
+        
+        # Update pet's internal state based on emoji interaction
+        self._update_state_from_emoji_interaction(fep_result)
+        
+        # Update last interaction time
+        self.last_interaction_time = time.time()
+        
+        # Store interaction in memory
+        interaction_memory = {
+            'type': 'emoji_interaction',
+            'user_input': emoji_sequence,
+            'pet_response': fep_result['pet_response'],
+            'surprise_level': fep_result['surprise_level'],
+            'timestamp': fep_result['timestamp'],
+            'context': user_context
+        }
+        self.episodic_memory.append(interaction_memory)
+        
+        # Limit memory size
+        if len(self.episodic_memory) > 1000:
+            self.episodic_memory = self.episodic_memory[-1000:]
+        
+        logger.info(f"Pet {self.unique_id} responds with: {fep_result['pet_response']}")
+        
+        return {
+            'user_emojis': emoji_sequence,
+            'pet_response': fep_result['pet_response'],
+            'surprise_level': fep_result['surprise_level'],
+            'response_confidence': fep_result['response_confidence'],
+            'pet_state': self.get_state(),
+            'timestamp': fep_result['timestamp']
+        }
+    
+    def generate_emoji_message(self) -> str:
+        """
+        Generate an emoji message based on the pet's current state and needs.
+        
+        Returns:
+            emoji_message: String of emojis expressing the pet's current state
+        """
+        # Get current state as context for emoji generation
+        current_state = np.array([
+            self.vital_stats['hunger'],
+            self.vital_stats['energy'],
+            self.vital_stats['mood'],
+            self.vital_stats['health'],
+            self.traits.get('playfulness', 0.5),
+            self.traits.get('curiosity', 0.5),
+            self.traits.get('affection', 0.5),
+            self.traits.get('independence', 0.5),
+            self.traits.get('energy_level', 0.5),
+            time.time() % 1,  # Time component
+            len(self.episodic_memory) / 1000.0,  # Experience component
+            self.get_attention_level(),
+            self.learning_adaptation_rate,
+            random.random(),  # Random exploration
+            random.random()   # Additional randomness
+        ])
+        
+        # Generate emoji response using FEP system
+        emoji_message = self.fep_system.generate_emoji_response(current_state)
+        
+        # Add context-based modifiers
+        if self.vital_stats['hunger'] > 0.7:
+            # Add food emojis when hungry
+            food_emojis = ['🍎', '🍕', '🍪', '🥛']
+            emoji_message += random.choice(food_emojis)
+        
+        if self.vital_stats['energy'] < 0.3:
+            # Add sleep emojis when tired
+            emoji_message += '😴'
+        
+        if self.traits.get('playfulness', 0.5) > 0.7 and self.vital_stats['energy'] > 0.5:
+            # Add play emojis when energetic and playful
+            play_emojis = ['🎮', '⚽', '🎯']
+            emoji_message += random.choice(play_emojis)
+        
+        logger.info(f"Pet {self.unique_id} generated emoji message: {emoji_message}")
+        return emoji_message
+    
+    def _update_state_from_emoji_interaction(self, fep_result: Dict[str, Any]):
+        """
+        Update pet's internal state based on emoji interaction results.
+        
+        Args:
+            fep_result: Result from FEP cognitive system processing
+        """
+        surprise_level = fep_result.get('surprise_level', 0.0)
+        confidence = fep_result.get('response_confidence', 0.5)
+        
+        # Low surprise (familiar interaction) increases contentment
+        if surprise_level < 0.3:
+            self.vital_stats['mood'] = min(1.0, self.vital_stats['mood'] + 0.1)
+            self.traits['affection'] = min(1.0, self.traits.get('affection', 0.5) + 0.05)
+        
+        # High confidence interactions boost mood
+        if confidence > 0.7:
+            self.vital_stats['mood'] = min(1.0, self.vital_stats['mood'] + 0.05)
+        
+        # Update learning based on interaction quality
+        learning_boost = confidence * 0.1
+        self.learning_adaptation_rate = min(1.0, self.learning_adaptation_rate + learning_boost)
+        
+        # Evolve traits based on interaction patterns
+        user_emojis = fep_result.get('user_emojis', '')
+        if '🎮' in user_emojis or '⚽' in user_emojis:
+            self.traits['playfulness'] = min(1.0, self.traits.get('playfulness', 0.5) + 0.02)
+        if '❤️' in user_emojis or '🤗' in user_emojis:
+            self.traits['affection'] = min(1.0, self.traits.get('affection', 0.5) + 0.02)
+        if '🤔' in user_emojis or '❓' in user_emojis:
+            self.traits['curiosity'] = min(1.0, self.traits.get('curiosity', 0.5) + 0.02)
+    
+    def _get_dominant_traits(self) -> List[str]:
+        """Get the most prominent personality traits of the pet."""
+        # Sort traits by value and return the top 3
+        sorted_traits = sorted(self.traits.items(), key=lambda x: x[1], reverse=True)
+        return [trait[0] for trait in sorted_traits[:3]]
+    
+    def get_state(self) -> Dict[str, Any]:
+        """Get the current state of the pet for API responses."""
+        return {
+            'id': self.unique_id,
+            'health': self.health,
+            'mood': self.mood,
+            'energy': self.energy,
+            'attention': self.attention_level,
+            'age': time.time() - self.creation_time,
+            'stage': self.development_stage,
+            'traits': self.traits,
+            'needs': self.needs,
+            'position': [self.pos[0], self.pos[1]] if hasattr(self, 'pos') else [0, 0]
+        }

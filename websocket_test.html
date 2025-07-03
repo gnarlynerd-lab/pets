@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DKS WebSocket Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { font-weight: bold; margin: 10px 0; }
+        .connected { color: green; }
+        .disconnected { color: red; }
+        #messages { border: 1px solid #ccc; height: 400px; overflow-y: scroll; padding: 10px; }
+        .message { margin: 5px 0; padding: 5px; background: #f0f0f0; }
+        button { margin: 5px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>🐾 DKS Digital Pet System - WebSocket Test</h1>
+    
+    <div class="status" id="status">Disconnected</div>
+    
+    <button onclick="connect()">Connect</button>
+    <button onclick="disconnect()">Disconnect</button>
+    <button onclick="sendPing()">Send Ping</button>
+    <button onclick="getPets()">Get Pets</button>
+    
+    <h3>Messages:</h3>
+    <div id="messages"></div>
+    
+    <script>
+        let ws = null;
+        const statusEl = document.getElementById('status');
+        const messagesEl = document.getElementById('messages');
+        
+        function addMessage(message) {
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message';
+            messageEl.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            messagesEl.appendChild(messageEl);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+        
+        function connect() {
+            if (ws) {
+                ws.close();
+            }
+            
+            ws = new WebSocket('ws://localhost:8000/ws');
+            
+            ws.onopen = function(event) {
+                statusEl.textContent = 'Connected';
+                statusEl.className = 'status connected';
+                addMessage('Connected to WebSocket');
+            };
+            
+            ws.onmessage = function(event) {
+                addMessage('Received: ' + event.data);
+            };
+            
+            ws.onclose = function(event) {
+                statusEl.textContent = 'Disconnected';
+                statusEl.className = 'status disconnected';
+                addMessage('Connection closed');
+            };
+            
+            ws.onerror = function(error) {
+                addMessage('Error: ' + error);
+            };
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+            }
+        }
+        
+        function sendPing() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({type: 'ping'}));
+                addMessage('Sent ping');
+            } else {
+                addMessage('Not connected');
+            }
+        }
+        
+        function getPets() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({type: 'get_pets'}));
+                addMessage('Requested pets data');
+            } else {
+                addMessage('Not connected');
+            }
+        }
+        
+        // Auto-connect on load
+        connect();
+    </script>
+</body>
+</html>

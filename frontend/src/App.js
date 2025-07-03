@@ -90,10 +90,20 @@ function App() {
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000'}/api/pets/${petId}`);
       if (response.ok) {
         const petData = await response.json();
-        setSelectedPet(petData);
+        // Check if the response contains an error
+        if (petData.error) {
+          console.error('Pet not found:', petData.error);
+          setSelectedPet(null);
+        } else {
+          setSelectedPet(petData);
+        }
+      } else {
+        console.error('Failed to fetch pet details:', response.status);
+        setSelectedPet(null);
       }
     } catch (error) {
       console.error('Error fetching pet details:', error);
+      setSelectedPet(null);
     }
   };
 
@@ -235,8 +245,8 @@ function App() {
               <h2>Interact with Pet</h2>
               <InteractionPanel 
                 onInteract={handleInteraction}
-                petEnergy={selectedPet.energy}
-                petMood={selectedPet.mood}
+                petEnergy={selectedPet?.energy || 0}
+                petMood={selectedPet?.mood || 0}
               />
             </div>
           </div>
