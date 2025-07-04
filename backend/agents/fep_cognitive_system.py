@@ -8,6 +8,7 @@ import logging
 from typing import Dict, List, Any, Optional, Tuple
 from collections import defaultdict
 import time
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +44,6 @@ class FEPCognitiveSystem:
         self.predictions = np.zeros(state_size)
         self.prediction_error = np.zeros(state_size)
         
-        # Action preferences (prior preferences for actions)
-        self.action_preferences = np.random.uniform(0, 1, action_size)
-        
         # Learning parameters
         self.learning_rate = 0.1
         self.precision_update_rate = 0.05
@@ -61,6 +59,11 @@ class FEPCognitiveSystem:
             'responses': ['❤️', '👍', '👎', '❓', '✨', '🎉', '💔', '😤', '🙏', '👋'],
             'modifiers': ['❓', '✨', '🔥', '💫', '⭐', '💨', '⚡', '🌟', '💝', '🎊']
         }
+        
+        # Action preferences (prior preferences for actions)
+        # Size should match the responses vocabulary size
+        responses_size = len(self.emoji_vocabulary['responses'])
+        self.action_preferences = np.random.uniform(0.2, 0.8, responses_size)  # Start with more varied preferences
         
         # Emoji learning and preferences
         self.emoji_preferences = defaultdict(float)  # Learn user emoji preferences
@@ -96,6 +99,26 @@ class FEPCognitiveSystem:
             '😍': [0.9, 0.3, 0.8],    # love eyes: very high joy and contentment, some curiosity
             '🥰': [0.8, 0.1, 0.9],    # loving: high joy, low curiosity, very high contentment
             '😌': [0.2, 0.0, 0.9],    # peaceful: low joy, no curiosity, very high contentment
+            '😎': [0.6, 0.1, 0.7],    # cool: moderate joy, low curiosity, good contentment
+            # Add missing response emojis
+            '💔': [-0.8, 0.0, -0.8],   # broken heart: negative joy and contentment
+            '😤': [-0.3, 0.2, -0.4],   # face with steam: slight negative, some curiosity
+            '🙏': [0.3, 0.0, 0.8],    # praying: moderate joy, no curiosity, high contentment
+            '👋': [0.5, 0.1, 0.4],    # waving: moderate joy, low curiosity, moderate contentment
+            # Add missing needs emojis
+            '🚿': [0.2, 0.1, 0.6],    # shower: low joy, low curiosity, moderate contentment
+            '⚽': [0.5, 0.8, 0.4],    # soccer: moderate joy, high curiosity, moderate contentment
+            '📚': [0.2, 0.9, 0.3],    # books: low joy, very high curiosity, low contentment
+            '🎵': [0.6, 0.3, 0.5],    # music: moderate joy, some curiosity, moderate contentment
+            # Add missing modifier emojis
+            '🔥': [0.7, 0.4, 0.2],    # fire: high joy, some curiosity, low contentment
+            '💫': [0.4, 0.5, 0.3],    # dizzy: moderate joy, high curiosity, low contentment
+            '⭐': [0.5, 0.3, 0.4],    # star: moderate joy, some curiosity, moderate contentment
+            '💨': [0.2, 0.6, 0.1],    # dashing away: low joy, high curiosity, low contentment
+            '⚡': [0.6, 0.7, 0.2],    # lightning: moderate joy, high curiosity, low contentment
+            '🌟': [0.6, 0.4, 0.5],    # glowing star: moderate joy, some curiosity, moderate contentment
+            '💝': [0.8, 0.2, 0.8],    # heart with ribbon: high joy, low curiosity, high contentment
+            '🎊': [0.8, 0.3, 0.6],    # confetti: high joy, some curiosity, moderate contentment
         }
         
         logger.info(f"Enhanced FEP cognitive system initialized with emoji support")
@@ -119,8 +142,12 @@ class FEPCognitiveSystem:
         # Calculate prediction error
         self.prediction_error = observation - self.predictions
         
-        # Calculate surprise (free energy proxy)
-        surprise = np.sum(np.square(self.prediction_error) * self.belief_precision)
+        # Calculate surprise (free energy proxy) - normalize to reduce sensitivity
+        raw_surprise = np.sum(np.square(self.prediction_error) * self.belief_precision)
+        
+        # Normalize surprise to a more reasonable range (0-1)
+        # Use sigmoid function to bound the surprise
+        surprise = 1.0 / (1.0 + np.exp(-raw_surprise + 2.0))  # Shift by 2.0 to center around 0.5
         
         # Update beliefs based on observation
         self.update_beliefs(observation)
@@ -131,7 +158,7 @@ class FEPCognitiveSystem:
             self.surprise_history.pop(0)
         
         # Update prediction accuracy
-        accuracy = 1.0 / (1.0 + surprise)
+        accuracy = 1.0 - surprise  # Invert so low surprise = high accuracy
         self.prediction_accuracy = 0.9 * self.prediction_accuracy + 0.1 * accuracy
         
         return surprise
@@ -187,9 +214,11 @@ class FEPCognitiveSystem:
             action: Selected action index
             confidence: Confidence in the action selection
         """
-        action_values = np.zeros(self.action_size)
+        # Use the size of action_preferences (which matches responses vocabulary)
+        action_size = len(self.action_preferences)
+        action_values = np.zeros(action_size)
         
-        for action in range(self.action_size):
+        for action in range(action_size):
             # Predict outcome of this action
             predicted_state = self.predict_next_state(current_state, action)
             
@@ -201,7 +230,7 @@ class FEPCognitiveSystem:
         
         # Select action with highest value (softmax selection for exploration)
         action_probs = self.softmax(action_values)
-        selected_action = np.random.choice(self.action_size, p=action_probs)
+        selected_action = np.random.choice(action_size, p=action_probs)
         confidence = action_probs[selected_action]
         
         return selected_action, confidence
@@ -305,42 +334,33 @@ class FEPCognitiveSystem:
     
     def process_emoji_input(self, emoji_input: str):
         """
-        Process incoming emoji communication and update cognitive state.
+        Process emoji input and update cognitive state accordingly.
         
         Args:
-            emoji_input: String containing emoji input from the user
+            emoji_input: String containing emoji characters
         """
         logger.info(f"Processing emoji input: {emoji_input}")
         
-        # Analyze emoji input and update beliefs/preferences
-        for emoji in emoji_input:
+        # Use regex to properly split emojis (handles multi-character emojis)
+        emoji_pattern = re.compile(r'[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF\U00002702-\U000027B0\U000024C2-\U0001F251]+')
+        emojis = emoji_pattern.findall(emoji_input)
+        
+        for emoji in emojis:
             if emoji in self.emoji_emotion_map:
-                # Update beliefs based on emoji emotion mapping
-                emotion_effect = np.array(self.emoji_emotion_map[emoji])  # 3D: [joy, curiosity, contentment]
+                # Update beliefs based on emoji emotion
+                emotion_vector = np.array(self.emoji_emotion_map[emoji])
                 
-                # Map the 3D emotion effect to appropriate parts of the 15D beliefs array
-                # We'll map joy, curiosity, contentment to the first 3 dimensions
-                # and apply scaled effects to other dimensions
-                belief_update = np.zeros(self.state_size)
+                # Update user preferences for this emoji
+                self.emoji_preferences[emoji] += self.learning_rate
+                self.emoji_preferences[emoji] = min(1.0, self.emoji_preferences[emoji])
                 
-                # Direct mapping for first 3 dimensions
-                belief_update[:3] = emotion_effect
-                
-                # Scaled effects for remaining dimensions (representing indirect emotional influence)
-                if self.state_size > 3:
-                    # Apply a dampened version of the emotion effect to other belief dimensions
-                    avg_emotion = np.mean(emotion_effect)
-                    belief_update[3:] = avg_emotion * 0.3  # Reduced influence
-                
-                # Apply the update with precision weighting
-                self.beliefs += self.learning_rate * belief_update * self.belief_precision
-                self.beliefs = np.clip(self.beliefs, 0, 1)
-                
-                # Update action preferences based on emoji responses
+                # Update action preferences based on emoji category
                 if emoji in self.emoji_vocabulary['responses']:
                     response_index = self.emoji_vocabulary['responses'].index(emoji)
-                    self.action_preferences[response_index] += self.learning_rate
-                    self.action_preferences = np.clip(self.action_preferences, 0, 1)
+                    # Ensure index is within bounds
+                    if response_index < len(self.action_preferences):
+                        self.action_preferences[response_index] += self.learning_rate
+                        self.action_preferences = np.clip(self.action_preferences, 0, 1)
                 
                 # Track emoji usage patterns
                 self.emoji_usage_patterns[emoji].append(time.time())
@@ -368,6 +388,9 @@ class FEPCognitiveSystem:
         else:
             emotion_context = np.array([0.0, 0.0, 0.0])
         
+        logger.debug(f"Emotion context: {emotion_context}")
+        logger.debug(f"Action preferences: {self.action_preferences}")
+        
         for i, emoji in enumerate(self.emoji_vocabulary['responses']):
             if emoji in self.emoji_emotion_map:
                 # Calculate compatibility between current emotion and emoji emotion
@@ -380,16 +403,26 @@ class FEPCognitiveSystem:
                     emotion_compatibility * 0.4 +
                     self.emoji_preferences.get(emoji, 0.0) * 0.1
                 )
+                logger.debug(f"Emoji {emoji}: action_pref={self.action_preferences[min(i, len(self.action_preferences)-1)]:.3f}, emotion_comp={emotion_compatibility:.3f}, final_score={response_scores[i]:.3f}")
             else:
                 # Fallback to action preferences only
                 response_scores[i] = self.action_preferences[min(i, len(self.action_preferences)-1)]
+                logger.debug(f"Emoji {emoji}: no emotion map, using action_pref={response_scores[i]:.3f}")
         
         # Add some randomness for exploration
-        exploration_noise = np.random.normal(0, 0.1, len(response_scores))
+        exploration_noise = np.random.normal(0, 0.2, len(response_scores))
         response_scores += exploration_noise
         
-        # Select highest scoring response
-        selected_response_index = np.argmax(response_scores)
+        # Boost scores for non-thinking emojis to encourage variety
+        for i, emoji in enumerate(self.emoji_vocabulary['responses']):
+            if emoji != '❓':  # Boost non-thinking emojis
+                response_scores[i] += 0.3
+        
+        logger.debug(f"Final response scores: {dict(zip(self.emoji_vocabulary['responses'], response_scores))}")
+        
+        # Use softmax selection instead of argmax for more variety
+        response_probs = self.softmax(response_scores, temperature=1.5)  # Higher temperature = more exploration
+        selected_response_index = np.random.choice(len(response_scores), p=response_probs)
         emoji_response = self.emoji_vocabulary['responses'][selected_response_index]
         
         logger.info(f"Generated emoji response: {emoji_response} (score: {response_scores[selected_response_index]:.3f})")

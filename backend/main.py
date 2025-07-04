@@ -26,7 +26,7 @@ app = FastAPI(title="DKS Agent System", version="1.0.0")
 # Allow CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -618,3 +618,7 @@ async def get_pet_cognition(pet_id: str):
         "avg_cognitive_level": sum(cognitive.cognitive_areas.values()) / len(cognitive.cognitive_areas),
         "recent_developments": cognitive.recent_developments
     }
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

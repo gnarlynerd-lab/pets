@@ -38,6 +38,21 @@ export function usePetState() {
   const [petResponse, setPetResponse] = useState<string>('')
   const [interactionHistory, setInteractionHistory] = useState<InteractionResult[]>([])
   const [availablePetId, setAvailablePetId] = useState<string | null>(null)
+  const [petName, setPetName] = useState<string>('')
+
+  // Load pet name from localStorage
+  useEffect(() => {
+    const savedName = localStorage.getItem('emoji-pet-name')
+    if (savedName) {
+      setPetName(savedName)
+    }
+  }, [])
+
+  // Save pet name to localStorage
+  const updatePetName = useCallback((name: string) => {
+    setPetName(name)
+    localStorage.setItem('emoji-pet-name', name)
+  }, [])
 
   // Get the first available pet ID
   const getAvailablePetId = useCallback(async () => {
@@ -125,18 +140,21 @@ export function usePetState() {
         const result = await response.json()
         
         // Update pet response
-        setPetResponse(result.pet_response || result.response || '🤔')
+        setPetResponse(result.emoji_response || result.pet_response || result.response || '🤔')
         
         // Add to interaction history
         const newInteraction: InteractionResult = {
           userEmojis: emojiSequence,
-          petResponse: result.pet_response || result.response || '🤔',
+          petResponse: result.emoji_response || result.pet_response || result.response || '🤔',
           surpriseLevel: result.surprise_level || 0,
-          responseConfidence: result.response_confidence || 0.5,
+          responseConfidence: result.response_confidence || result.confidence || 0.5,
           timestamp: Date.now()
         }
         
-        setInteractionHistory(prev => [...prev, newInteraction])
+        setInteractionHistory(prev => {
+          const updated = [...prev, newInteraction]
+          return updated
+        })
         
         // Update pet data if available
         if (result.pet_state) {
@@ -184,6 +202,8 @@ export function usePetState() {
     isLoading,
     petResponse,
     interactionHistory,
+    petName,
+    updatePetName,
     sendEmojiInteraction,
     refreshPetState,
   }

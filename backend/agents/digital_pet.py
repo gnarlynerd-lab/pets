@@ -7,12 +7,14 @@ import time
 import json
 import logging
 import random
+import numpy as np
 from typing import Dict, List, Any, Optional
 from collections import defaultdict
 
 from backend.agents.fluid_boundary import PetEnergySystem
 from backend.agents.pet_environment import ObservableCognitiveDevelopment
 from backend.agents.fep_cognitive_system import FEPCognitiveSystem
+from backend.agents.enhanced_fep_system import EnhancedFEPCognitiveSystem
 
 logger = logging.getLogger(__name__)
 
@@ -96,8 +98,8 @@ class DigitalPet(Agent):
         # Observable cognitive development - NEW
         self.cognitive_system = ObservableCognitiveDevelopment(self.unique_id)
         
-        # Free Energy Principle cognitive system - NEW
-        self.fep_system = FEPCognitiveSystem(state_size=15, action_size=8)
+        # Enhanced Free Energy Principle cognitive system - NEW
+        self.fep_system = EnhancedFEPCognitiveSystem(state_size=20, action_size=12)
         
         # Current region in environment - NEW
         self.current_region_id = "central"  # Default starting region
@@ -174,11 +176,11 @@ class DigitalPet(Agent):
             # 5. Update needs based on time passing and environment
             self._update_needs(environment_state)
             
-            # 5a. Use FEP system to process surprise and update boundary permeability
+            # 5a. Use Enhanced FEP system to process surprise and update boundary permeability
             if hasattr(self, "fep_system") and environment_state:
                 observation = self._map_state_to_observation(environment_state)
-                belief_update = self.fep_system.update_observation(observation)
-                surprise_level = belief_update.get("surprise", 0)
+                cognitive_update = self.fep_system.observe(observation)
+                surprise_level = cognitive_update.get("surprise", 0)
                 
                 # Adjust boundary permeability based on surprise
                 # High surprise = uncertain environment = decrease permeability for protection
@@ -246,6 +248,44 @@ class DigitalPet(Agent):
             env_state = self.model.environment_state.copy()
             env_state["current_region"] = self.current_region_id
             return env_state
+    
+    def _map_state_to_observation(self, environment_state: Dict[str, Any]) -> np.ndarray:
+        """Map environment state to observation vector for FEP system."""
+        observation = np.zeros(20)  # Match enhanced FEP state size
+        
+        # Map environment features to observation space
+        if environment_state:
+            # Weather effects
+            weather_energy = 0.5 if environment_state.get('weather') == 'sunny' else 0.3
+            observation[0] = weather_energy
+            
+            # Time of day (normalized)
+            time_of_day = environment_state.get('time_of_day', 12) / 24.0
+            observation[1] = time_of_day
+            
+            # Social atmosphere
+            observation[2] = environment_state.get('social_atmosphere', 0.5)
+            
+            # Environmental energy
+            observation[3] = environment_state.get('energy_level', 0.7)
+            
+            # Pet's current state
+            observation[4] = self.mood / 100.0
+            observation[5] = self.energy / 100.0
+            observation[6] = self.health / 100.0
+            observation[7] = self.attention_level / 100.0
+            
+            # Needs
+            observation[8] = self.needs.get('hunger', 0.0) / 100.0
+            observation[9] = self.needs.get('social', 0.0) / 100.0
+            observation[10] = self.needs.get('play', 0.0) / 100.0
+            observation[11] = self.needs.get('rest', 0.0) / 100.0
+            
+            # Add some noise for uncertainty
+            noise = np.random.normal(0, 0.05, 8)
+            observation[12:20] = noise
+        
+        return observation
     
     def _update_needs(self, environment_state=None):
         """Update pet needs based on time passing and environment"""
@@ -1645,7 +1685,7 @@ class DigitalPet(Agent):
             'context': self._get_current_context()
         }
         
-        # Process through FEP cognitive system
+        # Process through Enhanced FEP cognitive system
         fep_result = self.fep_system.process_emoji_interaction(
             emoji_sequence, 
             user_context={'user_id': user_id, 'pet_state': self.get_state()}
@@ -1658,29 +1698,33 @@ class DigitalPet(Agent):
         behavioral_response = self._generate_emoji_behavioral_response(fep_result)
         
         # Update user memory
-        self._update_user_emoji_memory(user_id, emoji_sequence, fep_result['pet_response'])
+        self._update_user_emoji_memory(user_id, emoji_sequence, fep_result['emoji_response'])
         
         # Store complete interaction in memory
         interaction_memory.update({
-            'pet_response': fep_result['pet_response'],
+            'pet_response': fep_result['emoji_response'],
             'surprise_level': fep_result['surprise_level'],
-            'behavioral_response': behavioral_response
+            'behavioral_response': behavioral_response,
+            'attention_level': fep_result.get('attention_level', self.attention_level),
+            'thriving_level': fep_result.get('thriving_level', 50.0)
         })
         self.episodic_memory.append(interaction_memory)
         
         # Prepare response data
         response_data = {
             'pet_id': self.unique_id,
-            'emoji_response': fep_result['pet_response'],
+            'emoji_response': fep_result['emoji_response'],
             'behavioral_response': behavioral_response,
             'mood_change': self._calculate_mood_change(fep_result),
             'surprise_level': fep_result['surprise_level'],
             'confidence': fep_result['response_confidence'],
+            'attention_level': fep_result.get('attention_level', self.attention_level),
+            'thriving_level': fep_result.get('thriving_level', 50.0),
             'updated_state': self.get_state(),
             'timestamp': time.time()
         }
         
-        logger.info(f"Pet {self.unique_id} responds with: {fep_result['pet_response']}")
+        logger.info(f"Pet {self.unique_id} responds with: {fep_result['emoji_response']}")
         return response_data
     
     def _get_current_context(self) -> Dict[str, Any]:
@@ -1716,12 +1760,15 @@ class DigitalPet(Agent):
     
     def _generate_emoji_behavioral_response(self, fep_result: Dict[str, Any]) -> str:
         """Generate a behavioral response description based on emoji interaction."""
-        emoji_response = fep_result['pet_response']
-        surprise_level = fep_result['surprise_level']
+        emoji_response = fep_result.get('emoji_response', '❓')
+        surprise_level = fep_result.get('surprise_level', 0.5)
+        attention_level = fep_result.get('attention_level', 50.0)
+        thriving_level = fep_result.get('thriving_level', 50.0)
         
         # Map emoji responses to behavioral descriptions
         behavior_map = {
             '❤️': "nuzzles affectionately and purrs contentedly",
+            '🥰': "melts with love and snuggles close",
             '😊': "wags tail happily and bounces around",
             '😔': "looks down sadly and seeks comfort",
             '🎉': "jumps excitedly and does a little dance",
@@ -1730,13 +1777,24 @@ class DigitalPet(Agent):
             '👍': "gives an approving chirp and stands proudly",
             '👎': "huffs disapprovingly and turns away briefly",
             '❓': "looks confused and tilts head from side to side",
-            '✨': "sparkles with joy and spins in a circle"
+            '✨': "sparkles with joy and spins in a circle",
+            '🤗': "opens arms wide for a warm hug",
+            '🙏': "bows respectfully and shows gratitude",
+            '👋': "waves enthusiastically and smiles",
+            '💔': "looks heartbroken and needs comfort",
+            '😤': "puffs up with determination and energy"
         }
         
         base_behavior = behavior_map.get(emoji_response, "responds thoughtfully")
         
-        # Modify behavior based on surprise level
-        if surprise_level > 0.7:
+        # Modify behavior based on attention and thriving levels
+        if attention_level > 80 and thriving_level > 70:
+            return f"thrives with joy and {base_behavior}"
+        elif attention_level < 30:
+            return f"seeks attention and {base_behavior}"
+        elif thriving_level < 30:
+            return f"struggles but tries to {base_behavior}"
+        elif surprise_level > 0.7:
             return f"looks startled, then {base_behavior}"
         elif surprise_level < 0.3:
             return f"calmly {base_behavior}"
@@ -1773,32 +1831,43 @@ class DigitalPet(Agent):
     
     def _calculate_mood_change(self, fep_result: Dict[str, Any]) -> float:
         """Calculate how much the mood changed from this interaction."""
-        surprise_level = fep_result['surprise_level']
-        confidence = fep_result['response_confidence']
+        surprise_level = fep_result.get('surprise_level', 0.5)
+        confidence = fep_result.get('response_confidence', 0.5)
+        attention_level = fep_result.get('attention_level', 50.0)
+        thriving_level = fep_result.get('thriving_level', 50.0)
         
-        # Positive mood change for successful (low surprise, high confidence) interactions
-        mood_change = (confidence - surprise_level) * 0.1
-        return max(-0.2, min(0.2, mood_change))  # Clamp between -0.2 and +0.2
+        # Base mood change from interaction quality
+        base_mood_change = (confidence - surprise_level) * 0.1
+        
+        # Additional mood boost from attention and thriving
+        attention_boost = (attention_level / 100.0) * 0.05  # Up to 5% boost from attention
+        thriving_boost = (thriving_level / 100.0) * 0.03   # Up to 3% boost from thriving
+        
+        total_mood_change = base_mood_change + attention_boost + thriving_boost
+        return max(-0.2, min(0.2, total_mood_change))  # Clamp between -0.2 and +0.2
     
     def _update_traits_from_emoji_interaction(self, fep_result: Dict[str, Any]):
         """Update personality traits based on emoji interaction patterns."""
         user_emojis = fep_result.get('user_emojis', '')
-        pet_response = fep_result.get('pet_response', '')
+        pet_response = fep_result.get('emoji_response', '')
         
         # Analyze interaction type and update relevant traits
         if any(emoji in user_emojis for emoji in ['❤️', '🥰', '😍', '🤗']):
-            # Affectionate interaction - increase sociability and affection
-            self.traits['sociability'] = min(1.0, self.traits['sociability'] + 0.01)
-            self.traits['affection'] = min(1.0, self.traits['affection'] + 0.01)
+            # Affectionate interaction - increase extraversion and affection
+            if 'extraversion' in self.traits:
+                self.traits['extraversion'] = min(1.0, self.traits['extraversion'] + 0.01)
+            if 'affection' in self.traits:
+                self.traits['affection'] = min(1.0, self.traits['affection'] + 0.01)
         
         if any(emoji in user_emojis for emoji in ['🎮', '⚽', '🎯']):
-            # Playful interaction - increase playfulness and energy
-            self.traits['playfulness'] = min(1.0, self.traits['playfulness'] + 0.01)
-            self.traits['energy_level'] = min(1.0, self.traits['energy_level'] + 0.005)
+            # Playful interaction - increase playfulness
+            if 'playfulness' in self.traits:
+                self.traits['playfulness'] = min(1.0, self.traits['playfulness'] + 0.01)
         
         if any(emoji in user_emojis for emoji in ['🤔', '❓', '📚']):
             # Curious interaction - increase curiosity
-            self.traits['curiosity'] = min(1.0, self.traits['curiosity'] + 0.01)
+            if 'curiosity' in self.traits:
+                self.traits['curiosity'] = min(1.0, self.traits['curiosity'] + 0.01)
     
     def get_emoji_communication_stats(self) -> Dict[str, Any]:
         """Get statistics about emoji communication patterns."""
@@ -1858,7 +1927,7 @@ class DigitalPet(Agent):
         interaction_memory = {
             'type': 'emoji_interaction',
             'user_input': emoji_sequence,
-            'pet_response': fep_result['pet_response'],
+            'pet_response': fep_result['emoji_response'],
             'surprise_level': fep_result['surprise_level'],
             'timestamp': fep_result['timestamp'],
             'context': user_context
@@ -1869,11 +1938,11 @@ class DigitalPet(Agent):
         if len(self.episodic_memory) > 1000:
             self.episodic_memory = self.episodic_memory[-1000:]
         
-        logger.info(f"Pet {self.unique_id} responds with: {fep_result['pet_response']}")
+        logger.info(f"Pet {self.unique_id} responds with: {fep_result['emoji_response']}")
         
         return {
             'user_emojis': emoji_sequence,
-            'pet_response': fep_result['pet_response'],
+            'pet_response': fep_result['emoji_response'],
             'surprise_level': fep_result['surprise_level'],
             'response_confidence': fep_result['response_confidence'],
             'pet_state': self.get_state(),

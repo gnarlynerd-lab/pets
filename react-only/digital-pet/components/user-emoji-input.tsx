@@ -342,6 +342,7 @@ export default function UserEmojiInput({ onSendEmoji, emojiHistory, petResponse 
   const [selectedCategory, setSelectedCategory] = useState<keyof typeof EMOJI_CATEGORIES>("emotions")
   const inputRef = useRef<HTMLInputElement>(null)
   const pickerRef = useRef<HTMLDivElement>(null)
+  const [inputFocused, setInputFocused] = useState(false)
 
   // Close emoji picker when clicking outside
   useEffect(() => {
@@ -384,106 +385,97 @@ export default function UserEmojiInput({ onSendEmoji, emojiHistory, petResponse 
   }
 
   return (
-    <div className="mt-6 space-y-4">
-      {/* Laboratory Communication Terminal */}
-      <div className="bg-gradient-to-br from-[#2F4F4F] to-[#1a2f2f] p-6 rounded-2xl border-2 border-[#8A6C3C] shadow-2xl font-mono">
-        <div className="flex items-center mb-4">
-          <Terminal className="h-5 w-5 mr-2 text-[#FF6347]" />
-          <span className="text-sm font-bold text-[#4682B4]">COMMUNICATION INTERFACE</span>
-          <div className="ml-auto flex space-x-1">
-            <div className="w-2 h-2 bg-[#FF6347] rounded-full animate-pulse"></div>
-            <div className="w-2 h-2 bg-[#8A6C3C] rounded-full"></div>
-            <div className="w-2 h-2 bg-[#4682B4] rounded-full"></div>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-3 mb-4">
-          <div className="relative flex-1">
+    <div className="mt-2 space-y-2 w-full max-w-xl mx-auto">
+      {/* Communication Terminal */}
+      <div className="bg-white/80 dark:bg-[#23272f] p-4 rounded-xl border border-[#e0c68a] shadow font-mono transition-all">
+        <div className="flex flex-col sm:flex-row items-center gap-2 mb-2">
+          <div className="relative flex-1 w-full">
             <Input
               ref={inputRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="TRANSMIT EMOTIONAL DATA... 😊🎮❤️"
-              className="pr-12 text-lg h-14 bg-[#1a2f2f] border-2 border-[#8A6C3C] focus:border-[#FF6347] focus:ring-[#FF6347] text-[#4682B4] placeholder:text-[#8A6C3C] font-mono"
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => setTimeout(() => setInputFocused(false), 200)}
+              placeholder="Send emoji... 😊🎮❤️"
+              className="pr-10 text-base h-12 bg-white dark:bg-[#23272f] border border-[#e0c68a] focus:border-[#FF6347] focus:ring-[#FF6347] text-[#222] dark:text-[#e0c68a] placeholder:text-[#bfa76a] font-mono rounded-lg shadow-sm"
             />
             <Button
               variant="ghost"
-              size="sm"
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              className="absolute right-2 top-2 h-10 w-10 text-[#FF6347] hover:bg-[#8A6C3C]/20 border border-[#8A6C3C]"
+              size="icon"
+              type="button"
+              onClick={() => setShowEmojiPicker((v) => !v)}
+              className="absolute right-1 top-1 h-10 w-10 text-[#FF6347] hover:bg-[#e0c68a]/20 border border-[#e0c68a] bg-white dark:bg-[#23272f]"
+              tabIndex={-1}
             >
               <Smile className="h-5 w-5" />
             </Button>
           </div>
-
           <Button
             onClick={handleSend}
             disabled={extractEmojis(inputValue).length === 0}
-            className="h-14 px-8 bg-gradient-to-r from-[#FF6347] to-[#8A6C3C] hover:from-[#8A6C3C] hover:to-[#FF6347] transition-all duration-300 font-mono font-bold border-2 border-[#8A6C3C] relative overflow-hidden group"
+            className="h-12 px-6 bg-gradient-to-r from-[#FF6347] to-[#e0c68a] hover:from-[#e0c68a] hover:to-[#FF6347] text-white font-bold border border-[#e0c68a] rounded-lg shadow-sm w-full sm:w-auto"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-700"></div>
-            <Send className="h-6 w-6 mr-2" />
-            TRANSMIT
+            <Send className="h-5 w-5 mr-1" />
+            Send
           </Button>
-
           <Button
             variant="outline"
             onClick={() => setShowHistory(!showHistory)}
-            className="h-14 px-6 border-2 border-[#8A6C3C] text-[#4682B4] hover:bg-[#8A6C3C]/20 font-mono"
+            className="h-12 px-4 border border-[#e0c68a] text-[#FF6347] hover:bg-[#e0c68a]/20 font-mono rounded-lg w-full sm:w-auto"
           >
             <History className="h-5 w-5" />
           </Button>
         </div>
 
-        {/* Laboratory Emoji Picker */}
-        {showEmojiPicker && (
-          <div ref={pickerRef} className="bg-[#1a2f2f] rounded-xl shadow-2xl border-2 border-[#8A6C3C] p-6 mb-4">
-            {/* Category Tabs */}
-            <div className="flex space-x-2 mb-4 overflow-x-auto">
-              {Object.keys(EMOJI_CATEGORIES).map((category) => (
-                <Button
-                  key={category}
-                  variant={selectedCategory === category ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedCategory(category as keyof typeof EMOJI_CATEGORIES)}
-                  className={`capitalize whitespace-nowrap font-mono ${
-                    selectedCategory === category
-                      ? "bg-gradient-to-r from-[#FF6347] to-[#8A6C3C] border-[#FF6347]"
-                      : "border-[#8A6C3C] text-[#4682B4] hover:bg-[#8A6C3C]/20"
-                  }`}
-                >
-                  {category.toUpperCase()}
-                </Button>
-              ))}
-            </div>
-
-            {/* Emoji Grid */}
-            <div className="grid grid-cols-8 gap-3 max-h-48 overflow-y-auto bg-[#2F4F4F] rounded-lg p-4 border border-[#8A6C3C]">
-              {EMOJI_CATEGORIES[selectedCategory].map((emoji, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleEmojiClick(emoji)}
-                  className="text-2xl p-3 hover:bg-[#8A6C3C]/30 rounded-lg transition-all duration-200 border border-transparent hover:border-[#FF6347]"
-                >
-                  {emoji}
-                </button>
-              ))}
+        {/* Emoji Picker Overlay */}
+        {(showEmojiPicker || inputFocused) && (
+          <div ref={pickerRef} className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/20" onClick={() => setShowEmojiPicker(false)}>
+            <div className="bg-white dark:bg-[#23272f] rounded-xl shadow-2xl border border-[#e0c68a] p-4 mb-8 sm:mb-0 max-w-lg w-full mx-2 relative z-50" onClick={e => e.stopPropagation()}>
+              {/* Category Tabs */}
+              <div className="flex space-x-2 mb-2 overflow-x-auto">
+                {Object.keys(EMOJI_CATEGORIES).map((category) => (
+                  <Button
+                    key={category}
+                    variant={selectedCategory === category ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedCategory(category as keyof typeof EMOJI_CATEGORIES)}
+                    className={`capitalize whitespace-nowrap font-mono rounded-full px-3 py-1 text-xs ${
+                      selectedCategory === category
+                        ? "bg-gradient-to-r from-[#FF6347] to-[#e0c68a] border-[#FF6347] text-white"
+                        : "border-[#e0c68a] text-[#FF6347] hover:bg-[#e0c68a]/20"
+                    }`}
+                  >
+                    {category.toUpperCase()}
+                  </Button>
+                ))}
+              </div>
+              {/* Emoji Grid */}
+              <div className="grid grid-cols-8 gap-2 max-h-40 overflow-y-auto bg-transparent rounded-lg p-2">
+                {EMOJI_CATEGORIES[selectedCategory].map((emoji, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleEmojiClick(emoji)}
+                    className="text-2xl p-1 hover:bg-[#e0c68a]/30 rounded-lg transition-all duration-200 border border-transparent focus:border-[#FF6347] bg-transparent"
+                    style={{ background: "none" }}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
 
         {/* Pet Response Feedback */}
         {petResponse && (
-          <div className="bg-[#1a2f2f] rounded-xl p-4 border-2 border-[#FF6347] bg-gradient-to-r from-[#FF6347]/10 to-[#8A6C3C]/10">
-            <div className="flex items-center space-x-3">
+          <div className="bg-[#f9f6f0] dark:bg-[#1a2f2f] rounded-xl p-3 border border-[#FF6347] mt-2">
+            <div className="flex items-center space-x-2">
               <Zap className="h-5 w-5 text-[#FF6347] animate-pulse" />
-              <span className="text-sm font-bold text-[#4682B4]">SPECIMEN RESPONSE DETECTED:</span>
-              <div className="flex space-x-2">
+              <span className="text-xs font-bold text-[#FF6347]">Pet Response:</span>
+              <div className="flex space-x-1">
                 {petResponse.map((emoji, index) => (
-                  <span key={index} className="text-xl animate-bounce" style={{ animationDelay: `${index * 100}ms` }}>
-                    {emoji}
-                  </span>
+                  <span key={index} className="text-xl animate-bounce" style={{ animationDelay: `${index * 100}ms` }}>{emoji}</span>
                 ))}
               </div>
             </div>
@@ -491,64 +483,42 @@ export default function UserEmojiInput({ onSendEmoji, emojiHistory, petResponse 
         )}
       </div>
 
-      {/* Laboratory History Panel */}
+      {/* History Panel */}
       {showHistory && (
-        <div className="bg-gradient-to-br from-[#2F4F4F] to-[#1a2f2f] rounded-2xl shadow-2xl border-2 border-[#8A6C3C] p-6 font-mono">
-          <h3 className="text-sm font-bold text-[#FF6347] mb-4 flex items-center">
-            <History className="h-4 w-4 mr-2" />
-            COMMUNICATION LOG
+        <div className="bg-white/80 dark:bg-[#23272f] rounded-xl shadow border border-[#e0c68a] p-4 font-mono mt-2">
+          <h3 className="text-xs font-bold text-[#FF6347] mb-2 flex items-center">
+            <History className="h-4 w-4 mr-1" />
+            Communication Log
           </h3>
-
           {emojiHistory.length === 0 ? (
-            <p className="text-[#8A6C3C] text-sm text-center py-6 bg-[#1a2f2f] rounded border border-[#8A6C3C]">
-              NO TRANSMISSIONS RECORDED. INITIATE COMMUNICATION PROTOCOL.
+            <p className="text-[#bfa76a] text-xs text-center py-4 bg-white/60 dark:bg-[#23272f] rounded border border-[#e0c68a]">
+              No transmissions yet.
             </p>
           ) : (
-            <div className="space-y-3 max-h-64 overflow-y-auto">
-              {emojiHistory
-                .slice(-5)
-                .reverse()
-                .map((exchange, index) => (
-                  <div
-                    key={exchange.timestamp}
-                    className="flex items-center justify-between p-4 bg-[#1a2f2f] rounded-lg border border-[#8A6C3C]"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-[#4682B4] font-bold">USER:</span>
-                        {exchange.userEmojis.map((emoji, i) => (
-                          <span key={i} className="text-lg">
-                            {emoji}
-                          </span>
-                        ))}
-                      </div>
-                      <span className="text-[#8A6C3C]">→</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-[#4682B4] font-bold">SPECIMEN:</span>
-                        {exchange.petResponse.map((emoji, i) => (
-                          <span key={i} className="text-lg">
-                            {emoji}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-3">
-                      {exchange.understood ? (
-                        <span className="text-xs bg-[#FF6347]/20 text-[#FF6347] px-3 py-1 rounded-full border border-[#FF6347] font-bold">
-                          DECODED
-                        </span>
-                      ) : (
-                        <span className="text-xs bg-[#8A6C3C]/20 text-[#8A6C3C] px-3 py-1 rounded-full border border-[#8A6C3C] font-bold">
-                          ERROR
-                        </span>
-                      )}
-                      <span className="text-xs text-[#4682B4] font-mono">
-                        {new Date(exchange.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </div>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {emojiHistory.slice(-5).reverse().map((exchange, index) => (
+                <div key={exchange.timestamp} className="flex items-center justify-between p-2 bg-white/60 dark:bg-[#23272f] rounded border border-[#e0c68a]">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs text-[#FF6347] font-bold">You:</span>
+                    {exchange.userEmojis.map((emoji, i) => (
+                      <span key={i} className="text-lg">{emoji}</span>
+                    ))}
+                    <span className="text-[#e0c68a]">→</span>
+                    <span className="text-xs text-[#FF6347] font-bold">Pet:</span>
+                    {exchange.petResponse.map((emoji, i) => (
+                      <span key={i} className="text-lg">{emoji}</span>
+                    ))}
                   </div>
-                ))}
+                  <div className="flex items-center space-x-2">
+                    {exchange.understood ? (
+                      <span className="text-xs bg-[#FF6347]/10 text-[#FF6347] px-2 py-0.5 rounded-full border border-[#FF6347] font-bold">Decoded</span>
+                    ) : (
+                      <span className="text-xs bg-[#e0c68a]/10 text-[#e0c68a] px-2 py-0.5 rounded-full border border-[#e0c68a] font-bold">Error</span>
+                    )}
+                    <span className="text-xs text-[#bfa76a] font-mono">{new Date(exchange.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

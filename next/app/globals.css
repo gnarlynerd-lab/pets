@@ -40,6 +40,38 @@
   }
 }
 
+/* Custom scrollbar styling */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: rgba(236, 72, 153, 0.1);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(236, 72, 153, 0.3);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(236, 72, 153, 0.5);
+}
+
+.scrollbar-thumb-pink-300::-webkit-scrollbar-thumb {
+  background: #f9a8d4;
+}
+
+.scrollbar-track-pink-100::-webkit-scrollbar-track {
+  background: #fce7f3;
+}
+
 /* Custom emoji animations */
 @keyframes emoji-bounce {
   0%, 20%, 50%, 80%, 100% {

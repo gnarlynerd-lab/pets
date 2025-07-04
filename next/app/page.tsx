@@ -1,9 +1,8 @@
 "use client"
 
-import { useState, useEffect } from 'react'
-import PetDisplay from '@/components/pet-display'
+import { useState, useEffect, useRef } from 'react'
+import BlobPetDisplay from '@/components/blob-pet-display'
 import EmojiInteraction from '@/components/emoji-interaction'
-import PetStats from '@/components/pet-stats'
 import { usePetState } from '@/hooks/use-pet-state'
 
 export default function Home() {
@@ -13,76 +12,155 @@ export default function Home() {
     sendEmojiInteraction,
     petResponse,
     interactionHistory,
+    petName,
+    updatePetName,
     refreshPetState
   } = usePetState()
 
-  return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
-      {/* Animated background grid */}
-      <div className="absolute inset-0 opacity-20">
-        <div
-          className="w-full h-full"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(147, 197, 253, 0.1) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(147, 197, 253, 0.1) 1px, transparent 1px)
-            `,
-            backgroundSize: "50px 50px",
-          }}
-        />
-      </div>
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [tempPetName, setTempPetName] = useState(petName || '')
 
-      <div className="relative z-10 container mx-auto px-4 py-8">
+  // Update tempPetName when petName changes
+  useEffect(() => {
+    setTempPetName(petName || '')
+  }, [petName])
+  const chatEndRef = useRef<HTMLDivElement>(null)
+  const chatContainerRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    // Use setTimeout to ensure DOM is updated before scrolling
+    setTimeout(() => {
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
+      }
+    }, 100)
+  }, [interactionHistory])
+
+  const handleNameSave = () => {
+    if (tempPetName.trim()) {
+      updatePetName(tempPetName.trim())
+    }
+    setIsEditingName(false)
+  }
+
+  const handleNameCancel = () => {
+    setTempPetName(petName || '')
+    setIsEditingName(false)
+  }
+
+  return (
+    <main className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
+      <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
-            DKS Emoji Pet
+          <h1 className="text-4xl md:text-6xl font-bold text-pink-700 mb-2 font-sans">
+            Digital Pets
           </h1>
-          <p className="text-slate-300 text-lg">
-            Your digital companion that speaks in emojis
+          <p className="text-purple-600 text-lg font-sans">
+            Chat with your blob friend using emojis
           </p>
         </div>
 
-        {/* Main content grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          
-          {/* Pet Display - Main area */}
-          <div className="lg:col-span-2">
-            <PetDisplay 
+        {/* Main content */}
+        <div className="max-w-4xl mx-auto space-y-8">
+          {/* Pet Display Area */}
+          <div className="flex justify-center">
+            <BlobPetDisplay 
               petData={petData}
               petResponse={petResponse}
               isLoading={isLoading}
+              petName={petName}
             />
           </div>
 
-          {/* Side panel - Stats and controls */}
-          <div className="space-y-6">
-            <PetStats petData={petData} />
-            
-            {/* Interaction history */}
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700">
-              <h3 className="text-lg font-semibold text-white mb-3">Recent Interactions</h3>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {interactionHistory.slice(-5).reverse().map((interaction, index) => (
-                  <div key={index} className="flex items-center justify-between text-sm">
-                    <span className="text-slate-300">You: {interaction.userEmojis}</span>
-                    <span className="text-blue-400">Pet: {interaction.petResponse}</span>
-                  </div>
-                ))}
-                {interactionHistory.length === 0 && (
-                  <p className="text-slate-500 text-sm italic">No interactions yet...</p>
+          {/* Chat History */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-lg border-2 border-pink-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-pink-700 font-sans">Chat History</h3>
+              
+              {/* Pet Name Editor */}
+              <div className="flex items-center gap-2">
+                {isEditingName ? (
+                  <>
+                    <input
+                      type="text"
+                      value={tempPetName}
+                      onChange={(e) => setTempPetName(e.target.value)}
+                      className="text-sm px-2 py-1 border border-pink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+                      placeholder="Pet name..."
+                      maxLength={20}
+                    />
+                    <button
+                      onClick={handleNameSave}
+                      className="bg-pink-500 hover:bg-pink-600 text-white text-xs px-2 py-1 rounded"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={handleNameCancel}
+                      className="border border-pink-300 text-pink-600 text-xs px-2 py-1 rounded"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setIsEditingName(true)}
+                    className="text-pink-600 hover:bg-pink-50 text-xs px-2 py-1 rounded"
+                  >
+                    {petName ? `Name: ${petName}` : 'Name Pet'}
+                  </button>
                 )}
               </div>
             </div>
-          </div>
-        </div>
+            
+            <div 
+              ref={chatContainerRef}
+              className="bg-pink-50/70 rounded-2xl p-4 h-64 overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-pink-300 scrollbar-track-pink-100"
+            >
+              {interactionHistory.length === 0 ? (
+                <div className="text-center text-pink-600 text-sm font-sans py-8">
+                  No conversations yet. Start chatting! 👋
+                </div>
+              ) : (
+                <>
+                  {interactionHistory.slice(-20).map((interaction, index) => (
+                    <div key={`${interaction.timestamp || index}-${index}`} className="space-y-2">
+                      {/* User message */}
+                      <div className="flex justify-end">
+                        <div className="bg-purple-100 rounded-2xl px-3 py-2 max-w-xs shadow-sm">
+                          <div className="text-lg">
+                            {interaction.userEmojis}
+                          </div>
+                          <div className="text-xs text-purple-600 mt-1">You</div>
+                        </div>
+                      </div>
+                      
+                      {/* Pet response */}
+                      <div className="flex justify-start">
+                        <div className="bg-pink-100 rounded-2xl px-3 py-2 max-w-xs shadow-sm">
+                          <div className="text-lg">
+                            {interaction.petResponse}
+                          </div>
+                          <div className="text-xs text-pink-600 mt-1">{petName || 'Pet'}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
 
-        {/* Emoji interaction panel - Bottom */}
-        <div className="mt-8">
-          <EmojiInteraction 
-            onSendEmoji={sendEmojiInteraction}
-            isLoading={isLoading}
-          />
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Emoji Communication Interface */}
+          <div>
+            <EmojiInteraction 
+              onSendEmoji={sendEmojiInteraction}
+              isLoading={isLoading}
+            />
+          </div>
         </div>
       </div>
     </main>
