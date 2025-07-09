@@ -282,8 +282,15 @@ async def emoji_interact_with_pet(interaction: Dict[str, Any]):
         raise HTTPException(status_code=404, detail=f"Pet {pet_id} not found")
     
     try:
-        # Process emoji interaction directly through the pet
-        response_data = pet.receive_emoji_message(emoji_message, user_id)
+        # Create user context for enhanced user modeling
+        user_context = {
+            "user_id": user_id,
+            "intensity": 0.5,  # Default intensity
+            "user_emotional_state": "neutral"
+        }
+        
+        # Process emoji interaction through enhanced user modeling system
+        response_data = pet.interact_with_emoji(emoji_message, user_context)
         
         # Store interaction data in Redis for persistence
         if redis_manager:
@@ -293,7 +300,7 @@ async def emoji_interact_with_pet(interaction: Dict[str, Any]):
                 message_type='emoji_communication',
                 content={
                     'user_emojis': emoji_message,
-                    'pet_response': response_data['emoji_response'],
+                    'pet_response': response_data['pet_response'],
                     'timestamp': response_data['timestamp'],
                     'surprise_level': response_data['surprise_level']
                 }
@@ -302,12 +309,19 @@ async def emoji_interact_with_pet(interaction: Dict[str, Any]):
         # Add to model's interaction tracking
         pet_model.add_user_interaction(user_id, pet_id, "emoji_communication", {
             'user_emojis': emoji_message,
-            'pet_response': response_data['emoji_response']
+            'pet_response': response_data['pet_response']
         })
         
-        logger.info(f"Emoji interaction processed: {user_id} -> {pet_id} | {emoji_message} -> {response_data['emoji_response']}")
+        logger.info(f"Emoji interaction processed: {user_id} -> {pet_id} | {emoji_message} -> {response_data['pet_response']}")
         
-        return response_data
+        # Return response in the format expected by frontend
+        return {
+            'emoji_response': response_data['pet_response'],
+            'surprise_level': response_data['surprise_level'],
+            'response_confidence': response_data.get('response_confidence', 0.5),
+            'timestamp': response_data['timestamp'],
+            'user_insights': response_data.get('user_insights', {})
+        }
         
     except Exception as e:
         logger.error(f"Error processing emoji interaction: {e}")
@@ -598,26 +612,176 @@ async def get_pet_boundary(pet_id: str):
 
 @app.get("/api/pets/{pet_id}/cognition")
 async def get_pet_cognition(pet_id: str):
-    """Get details about a pet's cognitive development"""
+    """Get cognitive development data for a specific pet"""
     if not pet_model:
-        return {"error": "Model not initialized"}
+        raise HTTPException(status_code=500, detail="Model not initialized")
     
     pet = pet_model.get_pet_by_id(pet_id)
     if not pet:
-        return {"error": f"Pet {pet_id} not found"}
+        raise HTTPException(status_code=404, detail=f"Pet {pet_id} not found")
     
-    if not hasattr(pet, "cognitive_system"):
-        return {"error": "Pet doesn't have cognitive system"}
+    try:
+        if hasattr(pet, "cognitive_system"):
+            return {
+                'pet_id': pet_id,
+                'cognitive_areas': pet.cognitive_system.cognitive_areas,
+                'developmental_stage': pet.cognitive_system.developmental_stage,
+                'recent_developments': pet.cognitive_system.recent_developments[-10:],
+                'learning_rate': pet.cognitive_system.learning_rate,
+                'timestamp': time.time()
+            }
+        else:
+            return {
+                'pet_id': pet_id,
+                'error': 'Cognitive system not available for this pet',
+                'timestamp': time.time()
+            }
+        
+    except Exception as e:
+        logger.error(f"Error getting cognition data for pet {pet_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get cognition data: {str(e)}")
+
+
+@app.get("/api/pets/{pet_id}/user-profile/{user_id}")
+async def get_user_profile(pet_id: str, user_id: str):
+    """Get user profile and relationship data for a specific user-pet pair"""
+    if not pet_model:
+        raise HTTPException(status_code=500, detail="Model not initialized")
     
-    cognitive = pet.cognitive_system
+    pet = pet_model.get_pet_by_id(pet_id)
+    if not pet:
+        raise HTTPException(status_code=404, detail=f"Pet {pet_id} not found")
     
-    return {
-        "pet_id": pet_id,
-        "cognitive_areas": cognitive.cognitive_areas,
-        "developmental_stage": cognitive.developmental_stage,
-        "avg_cognitive_level": sum(cognitive.cognitive_areas.values()) / len(cognitive.cognitive_areas),
-        "recent_developments": cognitive.recent_developments
-    }
+    try:
+        if hasattr(pet, 'user_modeling'):
+            profile = pet.get_user_profile(user_id)
+            return {
+                'pet_id': pet_id,
+                'user_id': user_id,
+                'profile': profile,
+                'timestamp': time.time()
+            }
+        else:
+            return {
+                'pet_id': pet_id,
+                'user_id': user_id,
+                'error': 'User modeling system not available',
+                'timestamp': time.time()
+            }
+        
+    except Exception as e:
+        logger.error(f"Error getting user profile for pet {pet_id}, user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get user profile: {str(e)}")
+
+
+@app.post("/api/pets/{pet_id}/predict-user-behavior")
+async def predict_user_behavior(pet_id: str, request: Dict[str, Any]):
+    """Predict user behavior based on learned patterns"""
+    if not pet_model:
+        raise HTTPException(status_code=500, detail="Model not initialized")
+    
+    pet = pet_model.get_pet_by_id(pet_id)
+    if not pet:
+        raise HTTPException(status_code=404, detail=f"Pet {pet_id} not found")
+    
+    user_id = request.get("user_id")
+    context = request.get("context", {})
+    
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id is required")
+    
+    try:
+        if hasattr(pet, 'user_modeling'):
+            prediction = pet.predict_user_behavior(user_id, context)
+            return {
+                'pet_id': pet_id,
+                'user_id': user_id,
+                'prediction': prediction,
+                'context': context,
+                'timestamp': time.time()
+            }
+        else:
+            return {
+                'pet_id': pet_id,
+                'user_id': user_id,
+                'error': 'User modeling system not available',
+                'timestamp': time.time()
+            }
+        
+    except Exception as e:
+        logger.error(f"Error predicting user behavior for pet {pet_id}, user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to predict user behavior: {str(e)}")
+
+
+@app.get("/api/pets/{pet_id}/adaptation-recommendations/{user_id}")
+async def get_adaptation_recommendations(pet_id: str, user_id: str):
+    """Get recommendations for how the pet should adapt to a specific user"""
+    if not pet_model:
+        raise HTTPException(status_code=500, detail="Model not initialized")
+    
+    pet = pet_model.get_pet_by_id(pet_id)
+    if not pet:
+        raise HTTPException(status_code=404, detail=f"Pet {pet_id} not found")
+    
+    try:
+        if hasattr(pet, 'user_modeling'):
+            recommendations = pet.get_adaptation_recommendations(user_id)
+            return {
+                'pet_id': pet_id,
+                'user_id': user_id,
+                'recommendations': recommendations,
+                'timestamp': time.time()
+            }
+        else:
+            return {
+                'pet_id': pet_id,
+                'user_id': user_id,
+                'error': 'User modeling system not available',
+                'timestamp': time.time()
+            }
+        
+    except Exception as e:
+        logger.error(f"Error getting adaptation recommendations for pet {pet_id}, user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get adaptation recommendations: {str(e)}")
+
+
+@app.get("/api/pets/{pet_id}/relationship-insights/{user_id}")
+async def get_relationship_insights(pet_id: str, user_id: str):
+    """Get detailed relationship insights between pet and user"""
+    if not pet_model:
+        raise HTTPException(status_code=500, detail="Model not initialized")
+    
+    pet = pet_model.get_pet_by_id(pet_id)
+    if not pet:
+        raise HTTPException(status_code=404, detail=f"Pet {pet_id} not found")
+    
+    try:
+        if hasattr(pet, 'user_modeling'):
+            profile = pet.get_user_profile(user_id)
+            
+            # Extract relationship insights
+            relationship_insights = {
+                'pet_id': pet_id,
+                'user_id': user_id,
+                'personality': profile.get('personality', {}),
+                'relationship': profile.get('relationship', {}),
+                'memory': profile.get('memory', {}),
+                'insights': profile.get('insights', {}),
+                'timestamp': time.time()
+            }
+            
+            return relationship_insights
+        else:
+            return {
+                'pet_id': pet_id,
+                'user_id': user_id,
+                'error': 'User modeling system not available',
+                'timestamp': time.time()
+            }
+        
+    except Exception as e:
+        logger.error(f"Error getting relationship insights for pet {pet_id}, user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get relationship insights: {str(e)}")
 
 
 if __name__ == "__main__":

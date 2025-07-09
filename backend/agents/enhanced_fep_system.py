@@ -253,7 +253,7 @@ class EnhancedFEPCognitiveSystem:
             total_precision += np.sum(self.belief_precision[level])
         
         # Free energy is precision-weighted prediction error
-        free_energy = total_error / (total_precision + 1e-6)
+        free_energy = float(total_error / (total_precision + 1e-6))
         return free_energy
     
     def _update_attention_from_observation(self, observation: np.ndarray):
@@ -325,9 +325,25 @@ class EnhancedFEPCognitiveSystem:
         logger.info(f"Interaction received: {interaction_type} (intensity: {intensity:.2f})")
         logger.info(f"Attention: {self.attention_level:.1f}, Thriving: {self.thriving_level:.1f}")
 
-    def select_action(self, current_state: np.ndarray) -> Tuple[int, float]:
+    def select_action(self, current_state: np.ndarray, use_policy_optimization: bool = True) -> Tuple[int, float]:
         """
-        Select action using active inference principles.
+        Select action using active inference principles with optional policy optimization.
+        
+        Args:
+            current_state: Current state of the environment
+            use_policy_optimization: Whether to use multi-step policy optimization
+            
+        Returns:
+            Tuple of (action_index, confidence)
+        """
+        if use_policy_optimization:
+            return self._select_action_with_policy_optimization(current_state)
+        else:
+            return self._select_action_greedy(current_state)
+    
+    def _select_action_greedy(self, current_state: np.ndarray) -> Tuple[int, float]:
+        """
+        Greedy action selection (original method).
         
         Args:
             current_state: Current state of the environment
@@ -359,10 +375,212 @@ class EnhancedFEPCognitiveSystem:
             confidence = 0.5
         else:
             # Exploit best action
-            action = np.argmax(action_probs)
-            confidence = action_probs[action]
+            action = int(np.argmax(action_probs))
+            confidence = float(action_probs[action])
         
         return action, confidence
+    
+    def _select_action_with_policy_optimization(self, current_state: np.ndarray, horizon: int = 3) -> Tuple[int, float]:
+        """
+        Select action using multi-step policy optimization.
+        
+        Args:
+            current_state: Current state of the environment
+            horizon: Planning horizon (number of steps to look ahead)
+            
+        Returns:
+            Tuple of (action_index, confidence)
+        """
+        # Generate action sequences
+        action_sequences = self._generate_action_sequences(horizon)
+        
+        # Evaluate each sequence
+        sequence_evaluations = []
+        for sequence in action_sequences:
+            evaluation = self._evaluate_action_sequence(current_state, sequence)
+            sequence_evaluations.append(evaluation)
+        
+        # Find best sequence
+        best_sequence_idx = int(np.argmax(sequence_evaluations))
+        best_sequence = action_sequences[best_sequence_idx]
+        best_evaluation = float(sequence_evaluations[best_sequence_idx])
+        
+        # Return first action from best sequence
+        first_action = int(best_sequence[0])
+        
+        # Calculate confidence based on evaluation quality and exploration
+        if random.random() < self.exploration_rate:
+            # Add some exploration
+            if random.random() < 0.3:  # 30% chance to explore even with policy optimization
+                first_action = random.randint(0, self.action_size - 1)
+                confidence = 0.6
+            else:
+                confidence = min(0.9, best_evaluation / 10.0)  # Scale evaluation to confidence
+        else:
+            confidence = min(0.95, best_evaluation / 8.0)  # Higher confidence for exploitation
+        
+        return first_action, confidence
+    
+    def _generate_action_sequences(self, horizon: int, max_sequences: int = 20) -> List[List[int]]:
+        """
+        Generate possible action sequences for planning.
+        
+        Args:
+            horizon: Planning horizon
+            max_sequences: Maximum number of sequences to generate
+            
+        Returns:
+            List of action sequences
+        """
+        sequences = []
+        
+        # Generate sequences using different strategies
+        strategies = [
+            self._generate_greedy_sequences,
+            self._generate_exploratory_sequences,
+            self._generate_balanced_sequences
+        ]
+        
+        sequences_per_strategy = max_sequences // len(strategies)
+        
+        for strategy in strategies:
+            strategy_sequences = strategy(horizon, sequences_per_strategy)
+            sequences.extend(strategy_sequences)
+        
+        # Ensure we have some diversity
+        if len(sequences) < max_sequences:
+            additional_sequences = self._generate_random_sequences(horizon, max_sequences - len(sequences))
+            sequences.extend(additional_sequences)
+        
+        return sequences[:max_sequences]
+    
+    def _generate_greedy_sequences(self, horizon: int, count: int) -> List[List[int]]:
+        """Generate sequences focusing on immediate rewards."""
+        sequences = []
+        for _ in range(count):
+            sequence = []
+            for _ in range(horizon):
+                # Prefer actions with high preferences
+                action_probs = self.action_preferences / np.sum(self.action_preferences)
+                action = np.random.choice(len(action_probs), p=action_probs)
+                sequence.append(action)
+            sequences.append(sequence)
+        return sequences
+    
+    def _generate_exploratory_sequences(self, horizon: int, count: int) -> List[List[int]]:
+        """Generate sequences with more exploration."""
+        sequences = []
+        for _ in range(count):
+            sequence = []
+            for _ in range(horizon):
+                # Mix of random and preference-based actions
+                if random.random() < 0.6:  # 60% random exploration
+                    action = random.randint(0, self.action_size - 1)
+                else:
+                    action_probs = self.action_preferences / np.sum(self.action_preferences)
+                    action = np.random.choice(len(action_probs), p=action_probs)
+                sequence.append(action)
+            sequences.append(sequence)
+        return sequences
+    
+    def _generate_balanced_sequences(self, horizon: int, count: int) -> List[List[int]]:
+        """Generate sequences balancing exploration and exploitation."""
+        sequences = []
+        for _ in range(count):
+            sequence = []
+            for _ in range(horizon):
+                # Balanced approach
+                if random.random() < 0.4:  # 40% random
+                    action = random.randint(0, self.action_size - 1)
+                else:
+                    # Weighted by preferences but with some randomness
+                    action_probs = self.action_preferences / np.sum(self.action_preferences)
+                    action = np.random.choice(len(action_probs), p=action_probs)
+                sequence.append(action)
+            sequences.append(sequence)
+        return sequences
+    
+    def _generate_random_sequences(self, horizon: int, count: int) -> List[List[int]]:
+        """Generate completely random sequences."""
+        sequences = []
+        for _ in range(count):
+            sequence = [random.randint(0, self.action_size - 1) for _ in range(horizon)]
+            sequences.append(sequence)
+        return sequences
+    
+    def _evaluate_action_sequence(self, current_state: np.ndarray, action_sequence: List[int]) -> float:
+        """
+        Evaluate an action sequence by simulating its execution.
+        
+        Args:
+            current_state: Starting state
+            action_sequence: Sequence of actions to evaluate
+            
+        Returns:
+            Evaluation score (higher is better)
+        """
+        state = current_state.copy()
+        total_reward = 0.0
+        discount_factor = 0.9  # Future rewards are discounted
+        
+        for i, action in enumerate(action_sequence):
+            # Predict next state
+            next_state = self._predict_next_state(state, action)
+            
+            # Calculate immediate reward
+            immediate_reward = self._calculate_immediate_reward(state, action, next_state)
+            
+            # Apply discount
+            discounted_reward = immediate_reward * (discount_factor ** i)
+            total_reward += discounted_reward
+            
+            # Update state for next iteration
+            state = next_state
+        
+        return total_reward
+    
+    def _calculate_immediate_reward(self, current_state: np.ndarray, action: int, next_state: np.ndarray) -> float:
+        """
+        Calculate immediate reward for a state-action-state transition.
+        
+        Args:
+            current_state: Current state
+            action: Action taken
+            next_state: Resulting state
+            
+        Returns:
+            Reward value
+        """
+        reward = 0.0
+        
+        # Reward for reducing surprise (active inference principle)
+        current_surprise = self._calculate_expected_surprise(current_state)
+        next_surprise = self._calculate_expected_surprise(next_state)
+        surprise_reduction = current_surprise - next_surprise
+        reward += surprise_reduction * 2.0  # Weight surprise reduction heavily
+        
+        # Reward for attention-seeking behavior (thriving principle)
+        if self.attention_level < 50.0:  # Low attention
+            # Reward actions that might increase attention
+            if action in [0, 1, 2]:  # Assuming these are attention-seeking actions
+                reward += 1.0
+        
+        # Reward for maintaining thriving
+        if self.thriving_level > 70.0:  # High thriving
+            # Reward actions that maintain high thriving
+            if action in [3, 4, 5]:  # Assuming these are thriving-maintaining actions
+                reward += 0.5
+        
+        # Reward for action preference alignment
+        if action < len(self.action_preferences):
+            preference_bonus = self.action_preferences[action] * 0.3
+            reward += preference_bonus
+        
+        # Penalty for very surprising states
+        if next_surprise > 2.0:  # High surprise threshold
+            reward -= 1.0
+        
+        return reward
     
     def _predict_next_state(self, current_state: np.ndarray, action: int) -> np.ndarray:
         """Predict next state given current state and action."""
@@ -386,7 +604,7 @@ class EnhancedFEPCognitiveSystem:
         expected_surprise = np.sum(np.square(belief_error))
         return expected_surprise
     
-    def process_emoji_interaction(self, emoji_sequence: str, user_context: Dict[str, Any] = None) -> Dict[str, Any]:
+    def process_emoji_interaction(self, emoji_sequence: str, user_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Process emoji interaction with enhanced attention-based processing.
         
@@ -441,7 +659,8 @@ class EnhancedFEPCognitiveSystem:
                 'curiosity': 0.0,
                 'contentment': 0.0,
                 'attention_potential': 0.3,
-                'overall_sentiment': 0.0
+                'overall_sentiment': 0.0,
+                'emoji_count': 0
             }
         
         # Calculate average emotional values
@@ -466,7 +685,8 @@ class EnhancedFEPCognitiveSystem:
                 'curiosity': 0.0,
                 'contentment': 0.0,
                 'attention_potential': 0.3,
-                'overall_sentiment': 0.0
+                'overall_sentiment': 0.0,
+                'emoji_count': len(emojis)
             }
         
         avg_joy = total_joy / valid_emojis
@@ -487,14 +707,17 @@ class EnhancedFEPCognitiveSystem:
         }
     
     def _generate_contextual_response(self, emotional_context: Dict[str, Any]) -> str:
-        """Generate contextual emoji response based on pet's state and emotional context."""
+        """Generate contextual multi-emoji response based on pet's state and emotional context."""
         # Get current state
         current_attention = self.attention_level / 100.0
         current_thriving = self.thriving_level / 100.0
         
-        # Calculate response probabilities based on context
+        # Calculate response probabilities for each emoji category
         response_scores = []
+        expression_scores = []
+        modifier_scores = []
         
+        # Score response emojis
         for i, emoji in enumerate(self.emoji_vocabulary['responses']):
             score = 0.0
             
@@ -528,13 +751,66 @@ class EnhancedFEPCognitiveSystem:
             
             response_scores.append(score)
         
-        # Add some randomness
-        noise = np.random.normal(0, 0.1, len(response_scores))
-        response_scores = np.array(response_scores) + noise
+        # Score expression emojis
+        for emoji in self.emoji_vocabulary['expressions']:
+            score = 0.0
+            
+            # Match expression to emotional context
+            if emotional_context['joy'] > 0.5 and emoji in ['😊', '😍', '🥰', '😆']:
+                score += 0.6
+            elif emotional_context['joy'] < -0.3 and emoji in ['😔', '💔']:
+                score += 0.6
+            elif emotional_context['curiosity'] > 0.5 and emoji in ['🤔', '😋']:
+                score += 0.5
+            elif emotional_context['contentment'] > 0.5 and emoji in ['😌', '😴']:
+                score += 0.5
+            
+            expression_scores.append(score)
         
-        # Select response
+        # Score modifier emojis
+        for emoji in self.emoji_vocabulary['modifiers']:
+            score = 0.0
+            
+            # Add modifiers based on intensity
+            if emotional_context['attention_potential'] > 0.7:
+                if emoji in ['✨', '🔥', '⚡', '🌟']:  # High energy modifiers
+                    score += 0.4
+            elif emotional_context['overall_sentiment'] > 0.5:
+                if emoji in ['💫', '⭐', '💝', '🎊']:  # Positive modifiers
+                    score += 0.3
+            
+            modifier_scores.append(score)
+        
+        # Add randomness
+        response_scores = np.array(response_scores) + np.random.normal(0, 0.1, len(response_scores))
+        expression_scores = np.array(expression_scores) + np.random.normal(0, 0.1, len(expression_scores))
+        modifier_scores = np.array(modifier_scores) + np.random.normal(0, 0.1, len(modifier_scores))
+        
+        # Build multi-emoji response
+        response_parts = []
+        
+        # Add expression (50% chance)
+        if random.random() < 0.5 and max(expression_scores) > 0.3:
+            expression_index = np.argmax(expression_scores)
+            response_parts.append(self.emoji_vocabulary['expressions'][expression_index])
+        
+        # Add main response
         response_index = np.argmax(response_scores)
-        return self.emoji_vocabulary['responses'][response_index]
+        response_parts.append(self.emoji_vocabulary['responses'][response_index])
+        
+        # Add modifier (30% chance)
+        if random.random() < 0.3 and max(modifier_scores) > 0.2:
+            modifier_index = np.argmax(modifier_scores)
+            response_parts.append(self.emoji_vocabulary['modifiers'][modifier_index])
+        
+        # Add need-based emoji (20% chance)
+        if random.random() < 0.2:
+            # Select based on current state
+            if current_thriving < 0.4:  # Low thriving - show needs
+                needs = ['🍎', '🍕', '🎮', '💤', '🤗']
+                response_parts.append(random.choice(needs))
+        
+        return ''.join(response_parts)
     
     def _create_observation_from_interaction(self, emotional_context: Dict[str, Any]) -> np.ndarray:
         """Create observation vector from emotional context."""
@@ -672,30 +948,3 @@ class EnhancedFEPCognitiveSystem:
         if 'belief_precision' in state:
             self.belief_precision['low_level'] = np.array(state['belief_precision']['low_level'])
             self.belief_precision['high_level'] = np.array(state['belief_precision']['high_level'])
-    
-    def get_emoji_usage_stats(self) -> Dict[str, Any]:
-        """Get statistics about emoji usage patterns."""
-        stats = {
-            'total_emojis_used': len(self.emoji_preferences),
-            'most_used_emojis': [],
-            'recent_usage_patterns': {},
-            'preference_strength': {}
-        }
-        
-        # Get most used emojis
-        if self.emoji_preferences:
-            sorted_emojis = sorted(self.emoji_preferences.items(), key=lambda x: x[1], reverse=True)
-            stats['most_used_emojis'] = sorted_emojis[:5]
-        
-        # Get recent usage patterns
-        current_time = time.time()
-        for emoji, patterns in self.emoji_usage_patterns.items():
-            recent_patterns = [p for p in patterns if current_time - p['timestamp'] < 3600]  # Last hour
-            if recent_patterns:
-                stats['recent_usage_patterns'][emoji] = len(recent_patterns)
-        
-        # Get preference strength
-        for emoji, preference in self.emoji_preferences.items():
-            stats['preference_strength'][emoji] = preference
-        
-        return stats

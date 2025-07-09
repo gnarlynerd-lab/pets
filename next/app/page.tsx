@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import BlobPetDisplay from '@/components/blob-pet-display'
 import EmojiInteraction from '@/components/emoji-interaction'
+import UserInsightsPanel from '@/components/user-insights-panel'
 import { usePetState } from '@/hooks/use-pet-state'
 
 export default function Home() {
@@ -19,6 +20,8 @@ export default function Home() {
 
   const [isEditingName, setIsEditingName] = useState(false)
   const [tempPetName, setTempPetName] = useState(petName || '')
+  const [userInsights, setUserInsights] = useState(null)
+  const [showUserInsights, setShowUserInsights] = useState(false)
 
   // Update tempPetName when petName changes
   useEffect(() => {
@@ -49,6 +52,15 @@ export default function Home() {
     setIsEditingName(false)
   }
 
+  // Enhanced emoji interaction handler to capture user insights
+  const handleEmojiInteraction = async (emojiSequence: string) => {
+    const result = await sendEmojiInteraction(emojiSequence)
+    if (result && result.user_insights) {
+      setUserInsights(result.user_insights)
+      setShowUserInsights(true)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
       <div className="container mx-auto px-4 py-8">
@@ -63,19 +75,23 @@ export default function Home() {
         </div>
 
         {/* Main content */}
-        <div className="max-w-4xl mx-auto space-y-8">
-          {/* Pet Display Area */}
-          <div className="flex justify-center">
-            <BlobPetDisplay 
-              petData={petData}
-              petResponse={petResponse}
-              isLoading={isLoading}
-              petName={petName}
-            />
-          </div>
+        <div className="max-w-7xl mx-auto">
+          {/* Three Column Layout: Pet, Chat, and Insights */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Pet Display Area */}
+            <div className="flex justify-center">
+              <BlobPetDisplay 
+                petData={petData}
+                petResponse={petResponse}
+                isLoading={isLoading}
+                petName={petName}
+              />
+            </div>
 
-          {/* Chat History */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-lg border-2 border-pink-200 p-6">
+            {/* Chat and Interaction Area */}
+            <div className="space-y-6">
+              {/* Chat History */}
+              <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-lg border-2 border-pink-200 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-pink-700 font-sans">Chat History</h3>
               
@@ -117,7 +133,7 @@ export default function Home() {
             
             <div 
               ref={chatContainerRef}
-              className="bg-pink-50/70 rounded-2xl p-4 h-64 overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-pink-300 scrollbar-track-pink-100"
+              className="bg-pink-50/70 rounded-2xl p-4 h-48 overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-pink-300 scrollbar-track-pink-100"
             >
               {interactionHistory.length === 0 ? (
                 <div className="text-center text-pink-600 text-sm font-sans py-8">
@@ -154,12 +170,45 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Emoji Communication Interface */}
-          <div>
-            <EmojiInteraction 
-              onSendEmoji={sendEmojiInteraction}
-              isLoading={isLoading}
-            />
+              {/* Emoji Communication Interface */}
+              <div>
+                <EmojiInteraction 
+                  onSendEmoji={handleEmojiInteraction}
+                  isLoading={isLoading}
+                />
+              </div>
+            </div>
+
+            {/* User Insights Panel */}
+            <div className="space-y-6">
+              <UserInsightsPanel
+                petId={petData?.id || ''}
+                userId="frontend_user"
+                userInsights={userInsights}
+                onRefresh={() => {
+                  // Could implement refresh logic here
+                  console.log('Refreshing user insights...')
+                }}
+              />
+              
+              {/* Relationship Toggle */}
+              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-pink-200 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-pink-700 font-sans">
+                    Relationship Features
+                  </h3>
+                  <button
+                    onClick={() => setShowUserInsights(!showUserInsights)}
+                    className="text-sm text-pink-600 hover:bg-pink-50 px-3 py-1 rounded-md border border-pink-200"
+                  >
+                    {showUserInsights ? 'Hide' : 'Show'} Insights
+                  </button>
+                </div>
+                <p className="text-sm text-pink-600 mt-2">
+                  Your pet learns about you and adapts to your communication style! 💕
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

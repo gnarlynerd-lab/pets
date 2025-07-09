@@ -112,7 +112,7 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
   }
 
   return (
-    <div className="bg-gradient-to-br from-pink-100 to-purple-100 rounded-3xl shadow-lg border-2 border-pink-200 p-8 min-h-[400px] flex flex-col items-center justify-center">
+    <div className="bg-gradient-to-br from-pink-100 to-purple-100 rounded-3xl shadow-lg border-2 border-pink-200 p-6 min-h-[350px] flex flex-col items-center justify-center w-full">
       {/* Loading overlay */}
       {isLoading && (
         <div className="absolute inset-0 bg-white/20 backdrop-blur-sm z-20 flex items-center justify-center rounded-3xl">
@@ -121,7 +121,7 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
       )}
 
       {/* SVG Blob Pet */}
-      <div className="w-64 h-64 mb-6">
+      <div className="w-48 h-48 mb-4">
         <svg
           viewBox="0 0 200 200"
           className="w-full h-full"

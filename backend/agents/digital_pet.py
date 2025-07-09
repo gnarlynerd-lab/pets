@@ -51,6 +51,10 @@ class DigitalPet(Agent):
         self.semantic_memory = {}  # Generalized knowledge from patterns
         self.user_memory = defaultdict(dict)  # Memory of specific users
         
+        # Enhanced user modeling system
+        from backend.agents.user_modeling import EnhancedUserModelingSystem
+        self.user_modeling = EnhancedUserModelingSystem()
+        
         # Behavior system
         self.behavior_patterns = defaultdict(float)  # Behavior -> activation threshold
         self.active_behaviors = []  # Currently active behaviors
@@ -91,6 +95,9 @@ class DigitalPet(Agent):
         self.interaction_count = 0
         self.lifetime_attention = 0
         self.evolution_generation = 0
+        
+        # Learning and adaptation
+        self.learning_adaptation_rate = 0.5  # How quickly the pet learns and adapts
         
         # Fluid boundary system - NEW
         self.energy_system = PetEnergySystem(self.unique_id, initial_energy=self.energy)
@@ -1392,6 +1399,26 @@ class DigitalPet(Agent):
             if interactions:
                 favorite = max(interactions, key=lambda x: x[1])[0]
                 self.user_memory[entity_id]["favorite_activity"] = favorite
+            
+            # Enhanced user modeling - process interaction through user modeling system
+            if hasattr(self, 'user_modeling'):
+                interaction_data = {
+                    "type": interaction_type,
+                    "intensity": content.get("intensity", 0.5),
+                    "content": content,
+                    "pet_response": content.get("pet_response", ""),
+                    "pet_mood_before": memory_entry["mood_before"],
+                    "pet_mood_after": memory_entry["mood_after"],
+                    "user_emotional_state": content.get("user_emotional_state", "neutral"),
+                    "pet_emotional_response": content.get("pet_emotional_response", "neutral"),
+                    "relationship_impact": content.get("relationship_impact", 0.0),
+                }
+                
+                try:
+                    user_modeling_result = self.user_modeling.process_interaction(entity_id, interaction_data)
+                    logger.info(f"User modeling update for {entity_id}: {user_modeling_result.get('insights', {})}")
+                except Exception as e:
+                    logger.error(f"Error in user modeling: {e}")
     
     def _evolve_traits(self):
         """Evolve traits based on interactions and experiences"""
@@ -1912,10 +1939,50 @@ class DigitalPet(Agent):
         if user_context is None:
             user_context = {}
             
-        logger.info(f"Pet {self.unique_id} receiving emoji interaction: {emoji_sequence}")
+        user_id = user_context.get("user_id", "default")
+        logger.info(f"Pet {self.unique_id} receiving emoji interaction: {emoji_sequence} from {user_id}")
         
-        # Process through FEP cognitive system
+        # Get user modeling insights for personalized response
+        user_insights = {}
+        if hasattr(self, 'user_modeling'):
+            try:
+                # Get user profile and predictions
+                user_profile = self.user_modeling.get_user_profile(user_id)
+                user_prediction = self.user_modeling.predict_user_behavior(user_id, user_context)
+                adaptation_suggestions = self.user_modeling.get_adaptation_recommendations(user_id)
+                
+                user_insights = {
+                    "profile": user_profile,
+                    "prediction": user_prediction,
+                    "adaptation_suggestions": adaptation_suggestions
+                }
+                
+                # Enhance user context with modeling insights
+                user_context.update({
+                    "user_style": user_profile.get("personality", {}).get("dominant_style", "gentle"),
+                    "relationship_phase": user_profile.get("relationship", {}).get("phase", "formation"),
+                    "trust_level": user_profile.get("relationship", {}).get("trust", 0.5),
+                    "familiarity_level": user_profile.get("relationship", {}).get("familiarity", 0.0),
+                })
+                
+                logger.info(f"User insights for {user_id}: {user_insights.get('profile', {}).get('insights', {})}")
+                
+            except Exception as e:
+                logger.error(f"Error getting user insights for {user_id}: {e}")
+        
+        # Process through FEP cognitive system with enhanced context
         fep_result = self.fep_system.process_emoji_interaction(emoji_sequence, user_context)
+        
+        # Add timestamp if not present
+        if 'timestamp' not in fep_result:
+            fep_result['timestamp'] = time.time()
+        
+        # Personalize response based on user modeling
+        personalized_response = self._personalize_emoji_response(
+            fep_result['emoji_response'], 
+            user_insights, 
+            user_context
+        )
         
         # Update pet's internal state based on emoji interaction
         self._update_state_from_emoji_interaction(fep_result)
@@ -1923,14 +1990,17 @@ class DigitalPet(Agent):
         # Update last interaction time
         self.last_interaction_time = time.time()
         
-        # Store interaction in memory
+        # Store interaction in memory with user modeling data
         interaction_memory = {
             'type': 'emoji_interaction',
+            'user_id': user_id,
             'user_input': emoji_sequence,
-            'pet_response': fep_result['emoji_response'],
+            'pet_response': personalized_response,
+            'original_response': fep_result['emoji_response'],
             'surprise_level': fep_result['surprise_level'],
             'timestamp': fep_result['timestamp'],
-            'context': user_context
+            'context': user_context,
+            'user_insights': user_insights
         }
         self.episodic_memory.append(interaction_memory)
         
@@ -1938,16 +2008,89 @@ class DigitalPet(Agent):
         if len(self.episodic_memory) > 1000:
             self.episodic_memory = self.episodic_memory[-1000:]
         
-        logger.info(f"Pet {self.unique_id} responds with: {fep_result['emoji_response']}")
+        logger.info(f"Pet {self.unique_id} responds with personalized: {personalized_response}")
         
         return {
             'user_emojis': emoji_sequence,
-            'pet_response': fep_result['emoji_response'],
+            'pet_response': personalized_response,
+            'original_response': fep_result['emoji_response'],
             'surprise_level': fep_result['surprise_level'],
             'response_confidence': fep_result['response_confidence'],
             'pet_state': self.get_state(),
+            'user_insights': user_insights,
             'timestamp': fep_result['timestamp']
         }
+    
+    def _personalize_emoji_response(self, base_response: str, user_insights: Dict[str, Any], user_context: Dict[str, Any]) -> str:
+        """Personalize emoji response based on user modeling insights"""
+        personalized = base_response
+        
+        try:
+            user_style = user_context.get("user_style", "gentle")
+            relationship_phase = user_context.get("relationship_phase", "formation")
+            trust_level = user_context.get("trust_level", 0.5)
+            familiarity_level = user_context.get("familiarity_level", 0.0)
+            
+            # Adapt response based on user style
+            if user_style == "playful" and "🎮" not in personalized and "⚽" not in personalized:
+                # Add playful elements for playful users
+                playful_emojis = ["🎮", "⚽", "🎯", "🎪", "🎨"]
+                if self.random.random() < 0.3:  # 30% chance
+                    personalized += self.random.choice(playful_emojis)
+            
+            elif user_style == "nurturing" and "❤️" not in personalized and "🤗" not in personalized:
+                # Add affectionate elements for nurturing users
+                affectionate_emojis = ["❤️", "🤗", "💕", "🥰", "🤱"]
+                if self.random.random() < 0.4:  # 40% chance
+                    personalized += self.random.choice(affectionate_emojis)
+            
+            elif user_style == "serious" and len(personalized) > 3:
+                # Keep responses concise for serious users
+                personalized = personalized[:3]
+            
+            # Adapt based on relationship phase
+            if relationship_phase == "formation":
+                # Be extra gentle and patient with new users
+                if "😊" not in personalized and "👋" not in personalized:
+                    formation_emojis = ["😊", "👋", "🤝", "💫"]
+                    if self.random.random() < 0.5:
+                        personalized += self.random.choice(formation_emojis)
+            
+            elif relationship_phase == "maturity":
+                # Show deeper emotional range with mature relationships
+                if trust_level > 0.7 and "💭" not in personalized and "🌟" not in personalized:
+                    mature_emojis = ["💭", "🌟", "💫", "✨", "🎭"]
+                    if self.random.random() < 0.3:
+                        personalized += self.random.choice(mature_emojis)
+            
+            # Adapt based on familiarity level
+            if familiarity_level > 0.8:
+                # Use more complex responses with familiar users
+                if len(personalized) < 4 and self.random.random() < 0.4:
+                    familiar_emojis = ["💫", "✨", "🎭", "🎪", "🎨"]
+                    personalized += self.random.choice(familiar_emojis)
+            
+            # Add user-specific favorite emojis if known
+            if user_insights.get("profile", {}).get("memory", {}).get("favorite_activities"):
+                # If user has favorite activities, reference them occasionally
+                if self.random.random() < 0.2:  # 20% chance
+                    activity_emojis = {
+                        "play": ["🎮", "⚽", "🎯"],
+                        "feed": ["🍕", "🍎", "🍪"],
+                        "pet": ["🤗", "💕", "🥰"],
+                        "train": ["🎓", "🏆", "⭐"]
+                    }
+                    
+                    favorite_activity = user_insights["profile"]["memory"]["favorite_activities"][0][0] if user_insights["profile"]["memory"]["favorite_activities"] else None
+                    if favorite_activity in activity_emojis:
+                        personalized += self.random.choice(activity_emojis[favorite_activity])
+            
+        except Exception as e:
+            logger.error(f"Error personalizing response: {e}")
+            # Return original response if personalization fails
+            return base_response
+        
+        return personalized
     
     def generate_emoji_message(self) -> str:
         """
@@ -1958,18 +2101,18 @@ class DigitalPet(Agent):
         """
         # Get current state as context for emoji generation
         current_state = np.array([
-            self.vital_stats['hunger'],
-            self.vital_stats['energy'],
-            self.vital_stats['mood'],
-            self.vital_stats['health'],
+            self.needs.get('hunger', 0.0),
+            self.energy,
+            self.mood,
+            self.health,
             self.traits.get('playfulness', 0.5),
             self.traits.get('curiosity', 0.5),
             self.traits.get('affection', 0.5),
             self.traits.get('independence', 0.5),
-            self.traits.get('energy_level', 0.5),
+            self.energy,
             time.time() % 1,  # Time component
             len(self.episodic_memory) / 1000.0,  # Experience component
-            self.get_attention_level(),
+            self.attention_level,
             self.learning_adaptation_rate,
             random.random(),  # Random exploration
             random.random()   # Additional randomness
@@ -1979,16 +2122,16 @@ class DigitalPet(Agent):
         emoji_message = self.fep_system.generate_emoji_response(current_state)
         
         # Add context-based modifiers
-        if self.vital_stats['hunger'] > 0.7:
+        if self.needs.get('hunger', 0.0) > 0.7:
             # Add food emojis when hungry
             food_emojis = ['🍎', '🍕', '🍪', '🥛']
             emoji_message += random.choice(food_emojis)
         
-        if self.vital_stats['energy'] < 0.3:
+        if self.energy < 0.3:
             # Add sleep emojis when tired
             emoji_message += '😴'
         
-        if self.traits.get('playfulness', 0.5) > 0.7 and self.vital_stats['energy'] > 0.5:
+        if self.traits.get('playfulness', 0.5) > 0.7 and self.energy > 0.5:
             # Add play emojis when energetic and playful
             play_emojis = ['🎮', '⚽', '🎯']
             emoji_message += random.choice(play_emojis)
@@ -2008,12 +2151,12 @@ class DigitalPet(Agent):
         
         # Low surprise (familiar interaction) increases contentment
         if surprise_level < 0.3:
-            self.vital_stats['mood'] = min(1.0, self.vital_stats['mood'] + 0.1)
+            self.mood = min(100.0, self.mood + 10.0)
             self.traits['affection'] = min(1.0, self.traits.get('affection', 0.5) + 0.05)
         
         # High confidence interactions boost mood
         if confidence > 0.7:
-            self.vital_stats['mood'] = min(1.0, self.vital_stats['mood'] + 0.05)
+            self.mood = min(100.0, self.mood + 5.0)
         
         # Update learning based on interaction quality
         learning_boost = confidence * 0.1
@@ -2046,5 +2189,38 @@ class DigitalPet(Agent):
             'stage': self.development_stage,
             'traits': self.traits,
             'needs': self.needs,
-            'position': [self.pos[0], self.pos[1]] if hasattr(self, 'pos') else [0, 0]
+            'position': [self.pos[0], self.pos[1]] if hasattr(self, 'pos') and self.pos is not None else [0, 0]
         }
+    
+    def get_user_profile(self, user_id: str) -> Dict[str, Any]:
+        """Get comprehensive user profile from the user modeling system"""
+        if hasattr(self, 'user_modeling'):
+            try:
+                return self.user_modeling.get_user_profile(user_id)
+            except Exception as e:
+                logger.error(f"Error getting user profile for {user_id}: {e}")
+                return {"error": f"Could not retrieve user profile: {e}"}
+        else:
+            return {"error": "User modeling system not available"}
+    
+    def predict_user_behavior(self, user_id: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Predict user behavior based on learned patterns"""
+        if hasattr(self, 'user_modeling'):
+            try:
+                return self.user_modeling.predict_user_behavior(user_id, context or {})
+            except Exception as e:
+                logger.error(f"Error predicting user behavior for {user_id}: {e}")
+                return {"error": f"Could not predict user behavior: {e}"}
+        else:
+            return {"error": "User modeling system not available"}
+    
+    def get_adaptation_recommendations(self, user_id: str) -> List[str]:
+        """Get recommendations for how the pet should adapt to this user"""
+        if hasattr(self, 'user_modeling'):
+            try:
+                return self.user_modeling.get_adaptation_recommendations(user_id)
+            except Exception as e:
+                logger.error(f"Error getting adaptation recommendations for {user_id}: {e}")
+                return ["Be patient and gentle"]  # Default recommendation
+        else:
+            return ["User modeling system not available"]
