@@ -11,10 +11,40 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import json
 import uuid
+from typing import Optional
 
 from backend.models.pet_model import PetModel
 from backend.communication.redis_manager import RedisManager
 from backend.visualization.data_collector import DataCollector
+from backend.database import init_db, PetRepository, get_db
+from backend.database.models import PetEnvironment, User
+from backend.auth import (
+    authenticate_user, create_user, create_access_token, get_current_active_user,
+    get_user_by_email, get_password_hash
+)
+from backend.auth.schemas import UserCreate, UserLogin, UserResponse, Token, PasswordChange
+from datetime import timedelta, datetime
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+
+
+class CreatePetRequest(BaseModel):
+    pet_name: Optional[str] = None
+
+
+class UpdatePetNameRequest(BaseModel):
+    new_name: str
+
+
+class AnonymousInteractionRequest(BaseModel):
+    pet_id: Optional[str] = None
+    emojis: str
+    context: Optional[Dict[str, Any]] = None
+
+
+class MigrateAnonymousDataRequest(BaseModel):
+    session_id: str
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -46,6 +76,13 @@ async def startup_event():
     
     logger.info("Starting DKS Digital Pet System...")
     
+    # Initialize database
+    try:
+        init_db()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+    
     # Initialize Redis connection
     redis_manager = RedisManager()
     await redis_manager.initialize()
@@ -59,6 +96,13 @@ async def startup_event():
         redis_manager=redis_manager,
         data_collector=data_collector
     )
+    
+    # Load any existing pets from database
+    try:
+        existing_pets = PetRepository.get_all_pets()
+        logger.info(f"Found {len(existing_pets)} existing pets in database")
+    except Exception as e:
+        logger.error(f"Failed to load existing pets: {e}")
     
     logger.info("DKS Digital Pet System initialized successfully")
 
@@ -130,6 +174,636 @@ async def reset_simulation():
     return {"message": "Simulation reset"}
 
 
+@app.post("/api/pets/save")
+async def save_all_pets():
+    """Save all current pet states to database"""
+    if not pet_model:
+        return {"error": "Model not initialized"}
+    
+    try:
+        saved_count = 0
+        for agent in pet_model.schedule.agents:
+            if hasattr(agent, 'unique_id'):
+                result = PetRepository.save_pet_from_agent(agent)
+                if result:
+                    saved_count += 1
+        
+        return {
+            "message": f"Saved {saved_count} pets to database",
+            "saved_count": saved_count,
+            "total_pets": len(pet_model.schedule.agents)
+        }
+    except Exception as e:
+        logger.error(f"Error saving pets: {e}")
+        return {"error": f"Failed to save pets: {str(e)}"}
+
+
+@app.get("/api/pets/load")
+async def load_pets_from_db():
+    """Load all pets from database"""
+    try:
+        pets = PetRepository.get_all_pets()
+        pets_data = [pet.to_dict() for pet in pets]
+        
+        return {
+            "message": f"Loaded {len(pets)} pets from database",
+            "count": len(pets),
+            "pets": pets_data
+        }
+    except Exception as e:
+        logger.error(f"Error loading pets: {e}")
+        return {"error": f"Failed to load pets: {str(e)}"}
+
+
+# Authentication endpoints
+@app.get("/auth/test")
+async def test_auth():
+    """Test auth endpoint"""
+    return {"message": "Auth system working"}
+
+@app.post("/auth/register")
+async def register_user(user_data: UserCreate):
+    """Register a new user"""
+    try:
+        with get_db() as db:
+            # Check if user already exists
+            if get_user_by_email(db, user_data.email):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email already registered"
+                )
+            
+            user = create_user(
+                db=db,
+                username=user_data.username,
+                email=user_data.email,
+                password=user_data.password,
+                user_preferences=user_data.user_preferences
+            )
+            
+            return {
+                "user_id": user.user_id,
+                "username": user.username,
+                "email": user.email,
+                "message": "User created successfully"
+            }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating user: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create user: {str(e)}"
+        )
+
+
+@app.post("/auth/token")
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Login and get access token"""
+    try:
+        with get_db() as db:
+            user = authenticate_user(db, form_data.username, form_data.password)  # username field contains email
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Incorrect email or password",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            
+            # Update last login
+            from datetime import datetime as dt
+            user.last_login = dt.utcnow()
+            db.commit()
+            
+            access_token_expires = timedelta(minutes=30)
+            access_token = create_access_token(
+                data={"sub": user.username}, expires_delta=access_token_expires
+            )
+            return {"access_token": access_token, "token_type": "bearer"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error during token login: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Token login failed: {str(e)}"
+        )
+
+
+@app.post("/auth/login")
+async def login_user(login_data: UserLogin):
+    """Login with email and password"""
+    try:
+        with get_db() as db:
+            user = authenticate_user(db, login_data.email, login_data.password)
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Incorrect email or password"
+                )
+            
+            # Update last login
+            from datetime import datetime as dt
+            user.last_login = dt.utcnow()
+            db.commit()
+            
+            access_token_expires = timedelta(minutes=30)
+            access_token = create_access_token(
+                data={"sub": user.username}, expires_delta=access_token_expires
+            )
+            return {"access_token": access_token, "token_type": "bearer"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error during login: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Login failed: {str(e)}"
+        )
+
+
+@app.get("/auth/me")
+async def get_current_user_info(current_user: User = Depends(get_current_active_user)):
+    """Get current user information"""
+    return {
+        "user_id": current_user.user_id,
+        "username": current_user.username,
+        "email": current_user.email,
+        "user_preferences": current_user.user_preferences,
+        "token_balance": current_user.token_balance,
+        "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+        "last_login": current_user.last_login.isoformat() if current_user.last_login else None
+    }
+
+
+@app.post("/auth/change-password")
+async def change_password(
+    password_data: PasswordChange,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Change user password"""
+    from backend.auth import verify_password
+    
+    # Verify current password
+    if not verify_password(password_data.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password"
+        )
+    
+    # Update password
+    current_user.password_hash = get_password_hash(password_data.new_password)
+    db.commit()
+    
+    return {"message": "Password updated successfully"}
+
+
+@app.post("/auth/migrate-anonymous-data")
+async def migrate_anonymous_data(
+    migration_request: MigrateAnonymousDataRequest,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Migrate anonymous pet data to authenticated user account"""
+    try:
+        session_id = migration_request.session_id
+        
+        with get_db() as db:
+            
+            # Find the anonymous pet by session_id
+            from backend.database.models import PetState, PetInteraction
+            anonymous_pet_state = db.query(PetState).filter(PetState.session_id == session_id).first()
+            if not anonymous_pet_state:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Anonymous session not found"
+                )
+            
+            # Check if user already has pets (optional - we could allow multiple pets)
+            existing_pets = db.query(PetState).filter(PetState.owner_id == current_user.user_id).all()
+            if existing_pets:
+                logger.warning(f"User {current_user.user_id} already has pets, merging anonymous data")
+            
+            # Transfer ownership of the anonymous pet to the authenticated user
+            anonymous_pet_state.owner_id = current_user.user_id
+            anonymous_pet_state.session_id = None  # Clear session_id as it's now owned
+            
+            # Update interactions to reference the user instead of session
+            session_user_id = f"session_{session_id}"
+            interactions = db.query(PetInteraction).filter(PetInteraction.user_id == session_user_id).all()
+            for interaction in interactions:
+                interaction.user_id = current_user.user_id
+            
+            # Commit all changes
+            db.commit()
+            
+            # Get the migrated pet data
+            pet_agent = pet_model.get_pet_by_id(anonymous_pet_state.pet_id)
+            if pet_agent:
+                pet_data = {
+                    "id": pet_agent.unique_id,
+                    "name": pet_agent.name,
+                    "owner_id": current_user.user_id,
+                    "traits": pet_agent.personality_traits,
+                    "mood": float(pet_agent.mood),
+                    "energy": float(pet_agent.energy),
+                    "health": float(pet_agent.health),
+                    "attention": float(pet_agent.attention),
+                    "needs": {
+                        "hunger": float(pet_agent.hunger),
+                        "thirst": float(pet_agent.thirst), 
+                        "social": float(pet_agent.social_need),
+                        "play": float(pet_agent.play_need),
+                        "rest": float(pet_agent.rest_need)
+                    },
+                    "age": float(pet_agent.age),
+                    "stage": pet_agent.life_stage,
+                    "current_emoji_message": pet_agent.current_emoji_message,
+                    "personality_summary": pet_agent.get_personality_summary()
+                }
+            else:
+                # Fallback to database data if agent not found in model
+                pet_data = anonymous_pet_state.to_dict()
+                pet_data["owner_id"] = current_user.user_id
+            
+            logger.info(f"Successfully migrated anonymous session {session_id} to user {current_user.user_id}")
+            
+            return {
+                "message": "Anonymous data migrated successfully",
+                "pet": pet_data,
+                "interactions_migrated": len(interactions) if interactions else 0
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error migrating anonymous data: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Migration failed: {str(e)}"
+        )
+
+
+# Anonymous session endpoints (no authentication required)
+@app.post("/api/anonymous/session/create")
+async def create_anonymous_session():
+    """Create a new anonymous session and assign a companion"""
+    try:
+        # Generate session ID
+        session_id = str(uuid.uuid4())
+        
+        if not pet_model:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Pet model not initialized"
+            )
+        
+        # Create a pet for this session
+        pet = pet_model.create_pet_for_session(session_id=session_id)
+        
+        if not pet:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create pet for session"
+            )
+        
+        return {
+            "session_id": session_id,
+            "pet": {
+                "id": pet.unique_id,
+                "name": pet.name if hasattr(pet, 'name') else f"Pet_{pet.unique_id[:8]}",
+                "session_id": pet.session_id if hasattr(pet, 'session_id') else session_id,
+                "attention": pet.attention_level,
+                "health": pet.health,
+                "mood": pet.mood,
+                "energy": pet.energy,
+                "age": pet.age,
+                "stage": pet.development_stage,
+                "traits": pet.traits,
+                "needs": pet.needs,
+                "position": pet.pos
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating anonymous session: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create anonymous session: {str(e)}"
+        )
+
+
+@app.get("/api/anonymous/pets/{session_id}")
+async def get_anonymous_pet(session_id: str):
+    """Get pet state for anonymous session"""
+    if not pet_model:
+        raise HTTPException(status_code=500, detail="Model not initialized")
+    
+    # Find pet by session_id
+    pet = None
+    for agent in pet_model.schedule.agents:
+        if hasattr(agent, 'session_id') and agent.session_id == session_id:
+            pet = agent
+            break
+    
+    if not pet:
+        raise HTTPException(status_code=404, detail=f"No pet found for session {session_id}")
+    
+    return {
+        "id": pet.unique_id,
+        "name": pet.name if hasattr(pet, 'name') else f"Pet_{pet.unique_id[:8]}",
+        "session_id": pet.session_id if hasattr(pet, 'session_id') else session_id,
+        "traits": pet.traits,
+        "attention": pet.attention_level,
+        "health": pet.health,
+        "mood": pet.mood,
+        "energy": pet.energy,
+        "age": pet.age,
+        "stage": pet.development_stage,
+        "needs": pet.needs,
+        "behavior_patterns": pet.behavior_patterns,
+        "position": pet.pos,
+        "current_emoji_message": getattr(pet, 'current_emoji_message', None),
+        "personality_summary": getattr(pet, 'personality_summary', None)
+    }
+
+
+@app.post("/api/anonymous/pets/{session_id}/emoji")
+async def anonymous_emoji_interact(session_id: str, interaction: AnonymousInteractionRequest):
+    """Emoji interaction for anonymous users"""
+    if not pet_model:
+        raise HTTPException(status_code=500, detail="Model not initialized")
+    
+    # Find pet by session_id
+    pet = None
+    for agent in pet_model.schedule.agents:
+        if hasattr(agent, 'session_id') and agent.session_id == session_id:
+            pet = agent
+            break
+    
+    if not pet:
+        raise HTTPException(status_code=404, detail=f"No pet found for session {session_id}")
+    
+    if not interaction.emojis:
+        raise HTTPException(status_code=400, detail="emojis field is required")
+    
+    try:
+        # Create anonymous user context
+        user_context = {
+            "user_id": f"session_{session_id}",
+            "intensity": 0.5,
+            "user_emotional_state": "neutral"
+        }
+        
+        # Process emoji interaction
+        response_data = pet.interact_with_emoji(interaction.emojis, user_context)
+        
+        # Store interaction in Redis if available
+        if redis_manager:
+            await redis_manager.store_interaction(
+                sender_id=f"session_{session_id}",
+                receiver_id=pet.unique_id,
+                message_type='emoji_communication',
+                content={
+                    'user_emojis': interaction.emojis,
+                    'pet_response': response_data['pet_response'],
+                    'timestamp': response_data['timestamp'],
+                    'surprise_level': response_data['surprise_level']
+                }
+            )
+        
+        # Store interaction in database
+        try:
+            PetRepository.record_interaction(
+                pet_id=pet.unique_id,
+                interaction_type="emoji_communication",
+                content={
+                    'user_emojis': interaction.emojis,
+                    'pet_response': response_data['pet_response'],
+                    'surprise_level': response_data['surprise_level']
+                },
+                user_id=f"session_{session_id}",
+                mood_impact=response_data.get('mood_change', 0),
+                attention_impact=response_data.get('attention_change', 0)
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save anonymous interaction to database: {e}")
+        
+        # Save updated pet state
+        try:
+            saved_pet = PetRepository.save_pet_from_agent(pet)
+            if saved_pet:
+                logger.info(f"Anonymous pet state saved to database after emoji interaction")
+        except Exception as e:
+            logger.error(f"Error saving anonymous pet state: {e}")
+        
+        logger.info(f"Anonymous emoji interaction: {session_id} -> {pet.unique_id} | {interaction.emojis} -> {response_data['pet_response']}")
+        
+        return {
+            'emoji_response': response_data['pet_response'],
+            'surprise_level': response_data['surprise_level'],
+            'response_confidence': response_data.get('response_confidence', 0.5),
+            'timestamp': response_data['timestamp'],
+            'user_insights': response_data.get('user_insights', {}),
+            'pet_state': {
+                'mood': pet.mood,
+                'energy': pet.energy,
+                'attention': pet.attention_level,
+                'needs': pet.needs
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error processing anonymous emoji interaction: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process emoji interaction: {str(e)}")
+
+
+@app.post("/api/anonymous/pets/{session_id}/interact")
+async def anonymous_general_interact(session_id: str, interaction: Dict[str, Any]):
+    """General interaction for anonymous users"""
+    if not pet_model:
+        raise HTTPException(status_code=500, detail="Model not initialized")
+    
+    # Find pet by session_id  
+    pet = None
+    for agent in pet_model.schedule.agents:
+        if hasattr(agent, 'session_id') and agent.session_id == session_id:
+            pet = agent
+            break
+    
+    if not pet:
+        raise HTTPException(status_code=404, detail=f"No pet found for session {session_id}")
+    
+    interaction_type = interaction.get("type")
+    content = interaction.get("content", {})
+    
+    if not interaction_type:
+        raise HTTPException(status_code=400, detail="interaction type is required")
+    
+    try:
+        # Add interaction to model queue using session as user_id
+        success = pet_model.add_user_interaction(
+            f"session_{session_id}", 
+            pet.unique_id, 
+            interaction_type, 
+            content
+        )
+        
+        if success:
+            return {
+                "message": f"Anonymous interaction {interaction_type} with {pet.unique_id} queued successfully",
+                "pet_state": {
+                    'mood': pet.mood,
+                    'energy': pet.energy,
+                    'attention': pet.attention_level,
+                    'needs': pet.needs
+                }
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to queue interaction")
+            
+    except Exception as e:
+        logger.error(f"Error processing anonymous interaction: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process interaction: {str(e)}")
+
+
+@app.get("/api/users/pets")
+async def get_user_pets(current_user: User = Depends(get_current_active_user)):
+    """Get pets belonging to the authenticated user"""
+    try:
+        pets = PetRepository.get_user_pets(current_user.user_id)
+        pets_data = [pet.to_dict() for pet in pets]
+        
+        return {
+            "message": f"Found {len(pets)} pets for user {current_user.username}",
+            "count": len(pets),
+            "pets": pets_data,
+            "user_id": current_user.user_id
+        }
+    except Exception as e:
+        logger.error(f"Error getting user pets: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get user pets"
+        )
+
+
+@app.post("/api/pets/create")
+async def create_pet_for_user(
+    request: CreatePetRequest,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create a new pet for the authenticated user"""
+    try:
+        if not pet_model:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Pet model not initialized"
+            )
+        
+        # Create the pet in the model
+        pet = pet_model.create_pet_for_user(
+            owner_id=current_user.user_id,
+            pet_name=request.pet_name
+        )
+        
+        if not pet:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create pet"
+            )
+        
+        # Return pet data
+        return {
+            "message": "Pet created successfully",
+            "pet": {
+                "id": pet.unique_id,
+                "name": pet.name,
+                "owner_id": pet.owner_id,
+                "attention": pet.attention_level,
+                "health": pet.health,
+                "mood": pet.mood,
+                "energy": pet.energy,
+                "age": pet.age,
+                "stage": pet.development_stage,
+                "traits": pet.traits,
+                "needs": pet.needs,
+                "position": pet.pos
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating pet: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create pet: {str(e)}"
+        )
+
+
+@app.put("/api/pets/{pet_id}/name")
+async def update_pet_name(
+    pet_id: str,
+    request: UpdatePetNameRequest,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Update a pet's name"""
+    try:
+        if not pet_model:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Pet model not initialized"
+            )
+        
+        # Get the pet from the model
+        pet = pet_model.get_pet_by_id(pet_id)
+        if not pet:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Pet {pet_id} not found"
+            )
+        
+        # Check if the current user owns this pet (if the pet has an owner)
+        if hasattr(pet, 'owner_id') and pet.owner_id and pet.owner_id != current_user.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to modify this pet"
+            )
+        
+        # Update the pet's name in memory
+        old_name = pet.name if hasattr(pet, 'name') else f"Pet_{pet_id[:8]}"
+        pet.name = request.new_name
+        
+        # Update the pet's name in the database
+        updates = {"pet_name": request.new_name}
+        updated_pet = PetRepository.update_pet(pet_id, updates)
+        
+        if not updated_pet:
+            # Pet might not exist in database yet, try to save it
+            saved_pet = PetRepository.save_pet_from_agent(pet)
+            if not saved_pet:
+                logger.warning(f"Failed to save pet {pet_id} to database after name update")
+        
+        logger.info(f"Pet {pet_id} name updated from '{old_name}' to '{request.new_name}' by user {current_user.user_id}")
+        
+        return {
+            "message": "Pet name updated successfully",
+            "pet_id": pet_id,
+            "old_name": old_name,
+            "new_name": request.new_name
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating pet name: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update pet name: {str(e)}"
+        )
+
+
 @app.get("/api/pets")
 async def get_all_pets():
     """Get all pets in the system"""
@@ -140,6 +814,8 @@ async def get_all_pets():
     for agent in pet_model.schedule.agents:
         pet_data = {
             "id": agent.unique_id,
+            "name": agent.name if hasattr(agent, 'name') else f"Pet_{agent.unique_id[:8]}",
+            "owner_id": agent.owner_id if hasattr(agent, 'owner_id') else None,
             "attention": agent.attention_level,
             "health": agent.health,
             "mood": agent.mood,
@@ -168,6 +844,8 @@ async def get_pet(pet_id: str):
     # Collect detailed pet data
     pet_data = {
         "id": pet.unique_id,
+        "name": pet.name if hasattr(pet, 'name') else f"Pet_{pet.unique_id[:8]}",
+        "owner_id": pet.owner_id if hasattr(pet, 'owner_id') else None,
         "traits": pet.traits,
         "attention": pet.attention_level,
         "attention_history": pet.attention_history[-20:],
@@ -232,12 +910,15 @@ async def get_pet(pet_id: str):
 
 
 @app.post("/api/pets/interact")
-async def interact_with_pet(interaction: Dict[str, Any]):
-    """Endpoint for user interactions with pets"""
+async def interact_with_pet(
+    interaction: Dict[str, Any],
+    current_user: User = Depends(get_current_active_user)
+):
+    """Endpoint for user interactions with pets (requires authentication)"""
     if not pet_model:
         return {"error": "Model not initialized"}
     
-    user_id = interaction.get("user_id", f"user_{uuid.uuid4().hex[:8]}")
+    user_id = current_user.user_id  # Use authenticated user's ID
     pet_id = interaction.get("pet_id")
     interaction_type = interaction.get("type")  # feed, play, pet, train, check
     content = interaction.get("content", {})
@@ -260,13 +941,16 @@ async def interact_with_pet(interaction: Dict[str, Any]):
 
 
 @app.post("/api/pets/emoji")
-async def emoji_interact_with_pet(interaction: Dict[str, Any]):
+async def emoji_interact_with_pet(
+    interaction: Dict[str, Any],
+    current_user: User = Depends(get_current_active_user)
+):
     """Dedicated endpoint for emoji-based communication with pets"""
     if not pet_model:
         raise HTTPException(status_code=500, detail="Model not initialized")
     
     # Extract and validate parameters
-    user_id = interaction.get("user_id", f"user_{uuid.uuid4().hex[:8]}")
+    user_id = current_user.user_id  # Use authenticated user's ID
     pet_id = interaction.get("pet_id")
     emoji_message = interaction.get("emojis", "")
     
@@ -306,11 +990,38 @@ async def emoji_interact_with_pet(interaction: Dict[str, Any]):
                 }
             )
         
+        # Store interaction in database
+        try:
+            PetRepository.record_interaction(
+                pet_id=pet_id,
+                interaction_type="emoji_communication",
+                content={
+                    'user_emojis': emoji_message,
+                    'pet_response': response_data['pet_response'],
+                    'surprise_level': response_data['surprise_level']
+                },
+                user_id=user_id,
+                mood_impact=response_data.get('mood_change', 0),
+                attention_impact=response_data.get('attention_change', 0)
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save interaction to database: {e}")
+        
         # Add to model's interaction tracking
         pet_model.add_user_interaction(user_id, pet_id, "emoji_communication", {
             'user_emojis': emoji_message,
             'pet_response': response_data['pet_response']
         })
+        
+        # Save updated pet state to database
+        try:
+            saved_pet = PetRepository.save_pet_from_agent(pet)
+            if saved_pet:
+                logger.info(f"Pet state saved to database after emoji interaction")
+            else:
+                logger.warning(f"Failed to save pet state to database")
+        except Exception as e:
+            logger.error(f"Error saving pet state to database: {e}")
         
         logger.info(f"Emoji interaction processed: {user_id} -> {pet_id} | {emoji_message} -> {response_data['pet_response']}")
         
@@ -510,10 +1221,26 @@ async def run_simulation():
     pet_model.running = True
     logger.info("Starting simulation loop...")
     
+    # Counter for periodic saves
+    save_counter = 0
+    save_interval = 100  # Save every 100 steps
+    
     while pet_model.running:
         try:
             # Step the model
             pet_model.step()
+            save_counter += 1
+            
+            # Periodically save pet states to database
+            if save_counter >= save_interval:
+                save_counter = 0
+                try:
+                    for agent in pet_model.schedule.agents:
+                        if hasattr(agent, 'unique_id'):
+                            PetRepository.save_pet_from_agent(agent)
+                    logger.debug(f"Saved {len(pet_model.schedule.agents)} pets to database")
+                except Exception as e:
+                    logger.error(f"Failed to save pets to database: {e}")
             
             # Collect and broadcast data
             if data_collector:
@@ -534,6 +1261,15 @@ async def run_simulation():
         except Exception as e:
             logger.error(f"Error in simulation loop: {e}")
             break
+    
+    # Save final states when simulation ends
+    try:
+        for agent in pet_model.schedule.agents:
+            if hasattr(agent, 'unique_id'):
+                PetRepository.save_pet_from_agent(agent)
+        logger.info("Saved final pet states to database")
+    except Exception as e:
+        logger.error(f"Failed to save final pet states: {e}")
     
     logger.info("Simulation loop ended")
 

@@ -33,13 +33,16 @@ class DigitalPet(Agent):
     - Cognitive development: Tracks observable growth in intelligence
     """
     
-    def __init__(self, unique_id: str, model, initial_traits: Optional[Dict] = None):
+    def __init__(self, unique_id: str, model, initial_traits: Optional[Dict] = None, owner_id: Optional[str] = None, session_id: Optional[str] = None, name: Optional[str] = None):
         super().__init__(unique_id, model)
         
         # Core DKS attributes (from DKSAgent)
         self.pet_type = "base"  # Can be specialized later
         self.creation_time = time.time()
         self.last_interaction_time = time.time()
+        self.owner_id = owner_id
+        self.session_id = session_id
+        self.name = name or f"Pet_{uuid.uuid4().hex[:4]}"
         
         # Evolution components
         self.trait_connections = defaultdict(float)  # How traits influence each other

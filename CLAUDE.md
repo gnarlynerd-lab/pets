@@ -103,5 +103,64 @@ Active work is happening on:
 - User modeling and personalization
 - Policy optimization algorithms
 - UI/UX improvements in Next.js app
+- **Anonymous user support with session-based interactions**
 
 When making changes, ensure compatibility between the backend agent system and frontend state management.
+
+## Anonymous User Implementation Plan
+
+### Philosophy (aligned with FUTURE_VISION.md)
+- Anonymous users are **participants**, not owners
+- Session-based interaction model that naturally evolves into the peer ecosystem vision
+- No "limited version" - full FEP experience without authentication
+- Authentication provides persistence and relationship continuity, not ownership
+
+### Backend Changes
+
+1. **Database Schema Updates**
+   - Add `session_id` field to pets table (nullable)
+   - Allow `owner_id` to be nullable
+   - Consider renaming `owner_id` → `participant_id` in future migration
+
+2. **New Anonymous Endpoints**
+   ```python
+   /api/anonymous/session/create  # Generate session, assign companion
+   /api/anonymous/pets/{session_id}  # Get pet state
+   /api/anonymous/pets/{session_id}/interact  # Full FEP interaction
+   /api/anonymous/pets/{session_id}/emoji  # Emoji interaction
+   ```
+
+3. **Session Management**
+   - Generate UUID session IDs in frontend
+   - Store in localStorage
+   - Pass `X-Session-ID` header for anonymous requests
+   - Cleanup job for old anonymous pets (30 days?)
+
+### Frontend Changes
+
+1. **Update `useAuthenticatedPetState` hook**
+   - Check for authentication status
+   - Use session-based endpoints when not authenticated
+   - Store session ID in localStorage
+   - Seamless switch between anonymous/authenticated modes
+
+2. **UI Updates**
+   - Subtle "Sign up to save your companion" prompts
+   - Show relationship benefits of authentication (history, multi-device)
+   - Not "upgrade" messaging - just continuity options
+
+### Migration Path
+
+1. **Anonymous → Authenticated**
+   - On signup, offer to claim session-based companion
+   - Transfer pet from `session_id` to `user_id`
+   - Preserve all interaction history and state
+   - Multiple sessions can be merged if user had several
+
+### Implementation Steps
+
+1. **Phase 1**: Backend anonymous endpoints
+2. **Phase 2**: Frontend session management
+3. **Phase 3**: Migration flow
+4. **Phase 4**: UI polish and prompts
+5. **Phase 5**: Consider peer ecosystem refactoring

@@ -99,6 +99,110 @@ class PetModel(Model):
             
             logger.debug(f"Created pet {pet_id} at position ({x}, {y})")
     
+    def create_pet_for_user(self, owner_id: str, pet_name: str = None) -> Optional[DigitalPet]:
+        """Create a new pet for a specific user"""
+        try:
+            # Create a unique ID for the pet
+            pet_id = f"pet_{owner_id}_{uuid.uuid4().hex[:8]}"
+            
+            # Create the pet
+            pet = DigitalPet(
+                unique_id=pet_id,
+                model=self,
+                owner_id=owner_id,
+                name=pet_name or f"Pet_{uuid.uuid4().hex[:4]}"
+            )
+            self.schedule.add(pet)
+            
+            # Place on grid in random location
+            x = self.random.randrange(self.grid.width)
+            y = self.random.randrange(self.grid.height)
+            self.grid.place_agent(pet, (x, y))
+            
+            logger.info(f"Created pet {pet_id} for user {owner_id} at position ({x}, {y})")
+            
+            # Save to database
+            from backend.database import PetRepository
+            pet_data = {
+                "pet_id": pet.unique_id,
+                "owner_id": owner_id,
+                "pet_name": pet.name,
+                "traits": pet.traits,
+                "trait_connections": {str(k): v for k, v in pet.trait_connections.items()},
+                "vital_stats": {
+                    "health": pet.health,
+                    "energy": pet.energy,
+                    "mood": pet.mood
+                },
+                "needs": pet.needs,
+                "memory": pet.episodic_memory if hasattr(pet, 'episodic_memory') else [],
+                "behavior_patterns": pet.behavior_patterns if hasattr(pet, 'behavior_patterns') else {},
+                "attention_level": pet.attention_level,
+                "development_stage": pet.development_stage,
+                "age": pet.age,
+                "position_x": x,
+                "position_y": y
+            }
+            PetRepository.create_pet(pet_data)
+            
+            return pet
+            
+        except Exception as e:
+            logger.error(f"Error creating pet for user {owner_id}: {e}")
+            return None
+    
+    def create_pet_for_session(self, session_id: str, pet_name: str = None) -> Optional[DigitalPet]:
+        """Create a new pet for an anonymous session"""
+        try:
+            # Create a unique ID for the pet
+            pet_id = f"pet_session_{session_id[:8]}_{uuid.uuid4().hex[:8]}"
+            
+            # Create the pet
+            pet = DigitalPet(
+                unique_id=pet_id,
+                model=self,
+                session_id=session_id,
+                name=pet_name or f"Companion_{uuid.uuid4().hex[:4]}"
+            )
+            self.schedule.add(pet)
+            
+            # Place on grid in random location
+            x = self.random.randrange(self.grid.width)
+            y = self.random.randrange(self.grid.height)
+            self.grid.place_agent(pet, (x, y))
+            
+            logger.info(f"Created pet {pet_id} for session {session_id} at position ({x}, {y})")
+            
+            # Save to database
+            from backend.database import PetRepository
+            pet_data = {
+                "pet_id": pet.unique_id,
+                "session_id": session_id,
+                "pet_name": pet.name,
+                "traits": pet.traits,
+                "trait_connections": {str(k): v for k, v in pet.trait_connections.items()},
+                "vital_stats": {
+                    "health": pet.health,
+                    "energy": pet.energy,
+                    "mood": pet.mood
+                },
+                "needs": pet.needs,
+                "memory": pet.episodic_memory if hasattr(pet, 'episodic_memory') else [],
+                "behavior_patterns": pet.behavior_patterns if hasattr(pet, 'behavior_patterns') else {},
+                "attention_level": pet.attention_level,
+                "development_stage": pet.development_stage,
+                "age": pet.age,
+                "position_x": x,
+                "position_y": y
+            }
+            PetRepository.create_pet(pet_data)
+            
+            return pet
+            
+        except Exception as e:
+            logger.error(f"Error creating pet for session {session_id}: {e}")
+            return None
+    
     def setup_data_collection(self):
         """Set up data collection for analysis and visualization"""
         if self.data_collector:

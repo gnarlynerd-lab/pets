@@ -4,9 +4,18 @@ import { useState, useEffect, useRef } from 'react'
 import BlobPetDisplay from '@/components/blob-pet-display'
 import EmojiInteraction from '@/components/emoji-interaction'
 import UserInsightsPanel from '@/components/user-insights-panel'
-import { usePetState } from '@/hooks/use-pet-state'
+import { AuthDialog } from '@/components/auth/auth-dialog'
+import { UserMenu } from '@/components/auth/user-menu'
+import { SaveCompanionBanner } from '@/components/save-companion-banner'
+import { SessionInfo } from '@/components/session-info'
+import { ClientOnly } from '@/components/client-only'
+import { EnvironmentStatus } from '@/components/environment-status'
+import { CompanionAutonomy } from '@/components/companion-autonomy'
+import { useAuthenticatedPetState } from '@/hooks/use-authenticated-pet-state'
+import { useAuth } from '@/contexts/auth-context'
 
 export default function Home() {
+  const { user } = useAuth()
   const {
     petData,
     isLoading,
@@ -15,18 +24,53 @@ export default function Home() {
     interactionHistory,
     petName,
     updatePetName,
-    refreshPetState
-  } = usePetState()
+    refreshPetState,
+    userPets,
+    isAuthenticated,
+    sessionId,
+    migrateAnonymousData
+  } = useAuthenticatedPetState()
 
   const [isEditingName, setIsEditingName] = useState(false)
   const [tempPetName, setTempPetName] = useState(petName || '')
   const [userInsights, setUserInsights] = useState(null)
   const [showUserInsights, setShowUserInsights] = useState(false)
+  const [authDialogOpen, setAuthDialogOpen] = useState(false)
+  const [migrationStatus, setMigrationStatus] = useState<{ 
+    isComplete: boolean
+    message?: string 
+  }>({ isComplete: false })
 
   // Update tempPetName when petName changes
   useEffect(() => {
     setTempPetName(petName || '')
   }, [petName])
+
+  // Auto-migrate anonymous data when user authenticates
+  useEffect(() => {
+    if (isAuthenticated && sessionId && !migrationStatus.isComplete) {
+      const performMigration = async () => {
+        console.log('Attempting to migrate anonymous data...', { sessionId })
+        const result = await migrateAnonymousData()
+        
+        if (result.success) {
+          setMigrationStatus({ 
+            isComplete: true, 
+            message: `Successfully saved your companion! ${result.interactionsMigrated} interactions migrated.` 
+          })
+          console.log('Migration successful:', result)
+        } else {
+          console.error('Migration failed:', result.error)
+          setMigrationStatus({ 
+            isComplete: true, 
+            message: `Failed to migrate data: ${result.error}` 
+          })
+        }
+      }
+      
+      performMigration()
+    }
+  }, [isAuthenticated, sessionId, migrationStatus.isComplete, migrateAnonymousData])
   const chatEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
@@ -64,15 +108,28 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-6xl font-bold text-pink-700 mb-2 font-sans">
-            Digital Pets
-          </h1>
-          <p className="text-purple-600 text-lg font-sans">
-            Chat with your blob friend using emojis
-          </p>
+        {/* Header with Auth */}
+        <div className="flex justify-between items-start mb-8">
+          <div className="text-center flex-1">
+            <h1 className="text-4xl md:text-6xl font-bold text-pink-700 mb-2 font-sans">
+              Digital Ecosystem
+            </h1>
+            <p className="text-purple-600 text-lg font-sans">
+              Connect with autonomous digital companions
+            </p>
+          </div>
+          
+          {/* User Menu */}
+          <div className="flex-shrink-0 ml-4">
+            <UserMenu onOpenAuth={() => setAuthDialogOpen(true)} />
+          </div>
         </div>
+
+        {/* Auth Dialog */}
+        <AuthDialog 
+          open={authDialogOpen} 
+          onOpenChange={setAuthDialogOpen}
+        />
 
         {/* Main content */}
         <div className="max-w-7xl mx-auto">
@@ -104,7 +161,7 @@ export default function Home() {
                       value={tempPetName}
                       onChange={(e) => setTempPetName(e.target.value)}
                       className="text-sm px-2 py-1 border border-pink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
-                      placeholder="Pet name..."
+                      placeholder="Companion name..."
                       maxLength={20}
                     />
                     <button
@@ -125,7 +182,7 @@ export default function Home() {
                     onClick={() => setIsEditingName(true)}
                     className="text-pink-600 hover:bg-pink-50 text-xs px-2 py-1 rounded"
                   >
-                    {petName ? `Name: ${petName}` : 'Name Pet'}
+                    {petName ? `Companion: ${petName}` : 'Meet Companion'}
                   </button>
                 )}
               </div>
@@ -137,7 +194,7 @@ export default function Home() {
             >
               {interactionHistory.length === 0 ? (
                 <div className="text-center text-pink-600 text-sm font-sans py-8">
-                  No conversations yet. Start chatting! 👋
+                  No conversations yet. Connect with your companion! 👋
                 </div>
               ) : (
                 <>
@@ -159,7 +216,7 @@ export default function Home() {
                           <div className="text-lg">
                             {interaction.petResponse}
                           </div>
-                          <div className="text-xs text-pink-600 mt-1">{petName || 'Pet'}</div>
+                          <div className="text-xs text-pink-600 mt-1">{petName || 'Companion'}</div>
                         </div>
                       </div>
                     </div>
@@ -183,7 +240,7 @@ export default function Home() {
             <div className="space-y-6">
               <UserInsightsPanel
                 petId={petData?.id || ''}
-                userId="frontend_user"
+                userId={user?.user_id || "frontend_user"}
                 userInsights={userInsights}
                 onRefresh={() => {
                   // Could implement refresh logic here
@@ -191,27 +248,112 @@ export default function Home() {
                 }}
               />
               
-              {/* Relationship Toggle */}
-              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-pink-200 shadow-lg">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-pink-700 font-sans">
-                    Relationship Features
-                  </h3>
-                  <button
-                    onClick={() => setShowUserInsights(!showUserInsights)}
-                    className="text-sm text-pink-600 hover:bg-pink-50 px-3 py-1 rounded-md border border-pink-200"
-                  >
-                    {showUserInsights ? 'Hide' : 'Show'} Insights
-                  </button>
+              {/* Session Status */}
+              <ClientOnly fallback={
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-3 border border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 bg-gray-300 rounded-full animate-pulse"></div>
+                    <div className="flex-1">
+                      <div className="w-20 h-4 bg-gray-300 rounded animate-pulse mb-1"></div>
+                      <div className="w-32 h-3 bg-gray-200 rounded animate-pulse"></div>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-sm text-pink-600 mt-2">
-                  Your pet learns about you and adapts to your communication style! 💕
+              }>
+                <SessionInfo
+                  isAuthenticated={isAuthenticated}
+                  sessionId={sessionId}
+                  petName={petName}
+                  interactionCount={interactionHistory.length}
+                  onSignIn={() => setAuthDialogOpen(true)}
+                />
+              </ClientOnly>
+
+              {/* Environment Intelligence */}
+              <ClientOnly fallback={
+                <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-indigo-200 shadow-lg">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-6 h-6 bg-indigo-100 rounded-full animate-pulse"></div>
+                    <div className="w-24 h-5 bg-indigo-100 rounded animate-pulse"></div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="w-full h-3 bg-indigo-50 rounded animate-pulse"></div>
+                    <div className="w-3/4 h-3 bg-indigo-50 rounded animate-pulse"></div>
+                  </div>
+                </div>
+              }>
+                <EnvironmentStatus
+                  companionCount={petData ? 1 : 0}
+                  activeConnections={interactionHistory.length > 0 ? 1 : 0}
+                />
+              </ClientOnly>
+
+              {/* Companion Autonomy */}
+              <ClientOnly fallback={
+                <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-emerald-200 shadow-lg">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-6 h-6 bg-emerald-100 rounded-full animate-pulse"></div>
+                    <div className="w-32 h-5 bg-emerald-100 rounded animate-pulse"></div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="w-full h-3 bg-emerald-50 rounded animate-pulse"></div>
+                    <div className="w-2/3 h-3 bg-emerald-50 rounded animate-pulse"></div>
+                  </div>
+                </div>
+              }>
+                <CompanionAutonomy
+                  petData={petData}
+                  interactionCount={interactionHistory.length}
+                />
+              </ClientOnly>
+
+              {/* Peer Relationship Status */}
+              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-pink-200 shadow-lg">
+                <h3 className="text-lg font-semibold text-pink-700 font-sans mb-2">
+                  Peer Connection
+                </h3>
+                <p className="text-sm text-pink-600">
+                  Your companion learns and grows through authentic interaction! We're building relationships together. 🤝
                 </p>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Save Companion Banner for anonymous users */}
+      <ClientOnly>
+        {!isAuthenticated && (
+          <SaveCompanionBanner
+            onSignIn={() => setAuthDialogOpen(true)}
+            petName={petName}
+            interactionCount={interactionHistory.length}
+          />
+        )}
+      </ClientOnly>
+
+      {/* Migration Success Notification */}
+      <ClientOnly>
+        {migrationStatus.isComplete && migrationStatus.message && (
+          <div className="fixed top-4 right-4 max-w-sm animate-slide-up">
+            <div className="bg-green-600 text-white rounded-xl p-4 shadow-xl">
+              <div className="flex items-start gap-2">
+                <div className="text-2xl">✨</div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-sm mb-1">Migration Complete!</h3>
+                  <p className="text-xs text-green-100">{migrationStatus.message}</p>
+                </div>
+                <button
+                  onClick={() => setMigrationStatus(prev => ({ ...prev, message: undefined }))}
+                  className="text-green-200 hover:text-white text-xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </ClientOnly>
     </main>
   )
 }
