@@ -106,15 +106,15 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50">
       <div className="container mx-auto px-4 py-8">
         {/* Header with Auth */}
         <div className="flex justify-between items-start mb-8">
           <div className="text-center flex-1">
-            <h1 className="text-4xl md:text-6xl font-bold text-pink-700 mb-2 font-sans">
+            <h1 className="text-4xl md:text-6xl font-bold text-indigo-700 mb-2 font-sans">
               Digital Ecosystem
             </h1>
-            <p className="text-purple-600 text-lg font-sans">
+            <p className="text-slate-600 text-lg font-sans">
               Connect with autonomous digital companions
             </p>
           </div>
@@ -148,9 +148,9 @@ export default function Home() {
             {/* Chat and Interaction Area */}
             <div className="space-y-6">
               {/* Chat History */}
-              <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-lg border-2 border-pink-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-pink-700 font-sans">Chat History</h3>
+              <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/50 p-6 hover:shadow-2xl transition-all duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-indigo-700 font-sans">Conversation</h3>
               
               {/* Pet Name Editor */}
               <div className="flex items-center gap-2">
@@ -160,19 +160,19 @@ export default function Home() {
                       type="text"
                       value={tempPetName}
                       onChange={(e) => setTempPetName(e.target.value)}
-                      className="text-sm px-2 py-1 border border-pink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+                      className="text-sm px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       placeholder="Companion name..."
                       maxLength={20}
                     />
                     <button
                       onClick={handleNameSave}
-                      className="bg-pink-500 hover:bg-pink-600 text-white text-xs px-2 py-1 rounded"
+                      className="bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white text-sm px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0"
                     >
                       Save
                     </button>
                     <button
                       onClick={handleNameCancel}
-                      className="border border-pink-300 text-pink-600 text-xs px-2 py-1 rounded"
+                      className="border border-slate-300 hover:border-slate-400 text-slate-600 hover:text-slate-700 text-sm px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:bg-slate-50 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 active:translate-y-0"
                     >
                       Cancel
                     </button>
@@ -180,7 +180,7 @@ export default function Home() {
                 ) : (
                   <button
                     onClick={() => setIsEditingName(true)}
-                    className="text-pink-600 hover:bg-pink-50 text-xs px-2 py-1 rounded"
+                    className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 text-sm px-3 py-2 rounded-lg font-medium transition-all duration-200 hover:shadow-md transform hover:-translate-y-0.5 active:translate-y-0"
                   >
                     {petName ? `Companion: ${petName}` : 'Meet Companion'}
                   </button>
@@ -190,10 +190,10 @@ export default function Home() {
             
             <div 
               ref={chatContainerRef}
-              className="bg-pink-50/70 rounded-2xl p-4 h-48 overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-pink-300 scrollbar-track-pink-100"
+              className="bg-slate-50/70 rounded-2xl p-6 h-96 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100"
             >
               {interactionHistory.length === 0 ? (
-                <div className="text-center text-pink-600 text-sm font-sans py-8">
+                <div className="text-center text-slate-500 text-sm font-sans py-12">
                   No conversations yet. Connect with your companion! 👋
                 </div>
               ) : (
@@ -202,21 +202,21 @@ export default function Home() {
                     <div key={`${interaction.timestamp || index}-${index}`} className="space-y-2">
                       {/* User message */}
                       <div className="flex justify-end">
-                        <div className="bg-purple-100 rounded-2xl px-3 py-2 max-w-xs shadow-sm">
-                          <div className="text-lg">
+                        <div className="bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-2xl px-4 py-3 max-w-xs shadow-lg border border-indigo-200/30 hover:shadow-xl transition-all duration-200">
+                          <div className="text-xl">
                             {interaction.userEmojis}
                           </div>
-                          <div className="text-xs text-purple-600 mt-1">You</div>
+                          <div className="text-xs text-indigo-600 mt-1 font-medium">You</div>
                         </div>
                       </div>
                       
                       {/* Pet response */}
                       <div className="flex justify-start">
-                        <div className="bg-pink-100 rounded-2xl px-3 py-2 max-w-xs shadow-sm">
-                          <div className="text-lg">
+                        <div className="bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl px-4 py-3 max-w-xs shadow-lg border border-slate-200/30 hover:shadow-xl transition-all duration-200">
+                          <div className="text-xl">
                             {interaction.petResponse}
                           </div>
-                          <div className="text-xs text-pink-600 mt-1">{petName || 'Companion'}</div>
+                          <div className="text-xs text-slate-600 mt-1 font-medium">{petName || 'Companion'}</div>
                         </div>
                       </div>
                     </div>
@@ -308,11 +308,11 @@ export default function Home() {
               </ClientOnly>
 
               {/* Peer Relationship Status */}
-              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-pink-200 shadow-lg">
-                <h3 className="text-lg font-semibold text-pink-700 font-sans mb-2">
+              <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-amber-200/30 shadow-xl hover:shadow-2xl transition-all duration-300">
+                <h3 className="text-lg font-semibold text-amber-700 font-sans mb-3">
                   Peer Connection
                 </h3>
-                <p className="text-sm text-pink-600">
+                <p className="text-sm text-amber-600 leading-relaxed">
                   Your companion learns and grows through authentic interaction! We're building relationships together. 🤝
                 </p>
               </div>

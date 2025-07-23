@@ -74,16 +74,16 @@ export default function UserInsightsPanel({
       case 'playful': return 'text-blue-600'
       case 'nurturing': return 'text-green-600'
       case 'serious': return 'text-purple-600'
-      case 'gentle': return 'text-pink-600'
+      case 'gentle': return 'text-slate-600'
       case 'distant': return 'text-gray-600'
       default: return 'text-gray-600'
     }
   }
 
   return (
-    <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-pink-200 shadow-lg">
+    <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-indigo-200 shadow-lg">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold text-pink-700 font-sans">
+        <h3 className="text-lg font-semibold text-slate-600 font-sans">
           Relationship Insights
         </h3>
         <div className="flex gap-2">
@@ -91,7 +91,7 @@ export default function UserInsightsPanel({
             variant="outline"
             size="sm"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="border-pink-200 text-pink-600 hover:bg-pink-50"
+            className="border-indigo-200 text-slate-600 hover:bg-indigo-50"
           >
             {isExpanded ? 'Hide' : 'Show'} Details
           </Button>
@@ -101,7 +101,7 @@ export default function UserInsightsPanel({
               size="sm"
               onClick={onRefresh}
               disabled={isLoading}
-              className="border-pink-200 text-pink-600 hover:bg-pink-50"
+              className="border-indigo-200 text-slate-600 hover:bg-indigo-50"
             >
               {isLoading ? '...' : '↻'}
             </Button>
@@ -114,8 +114,8 @@ export default function UserInsightsPanel({
           {/* Quick Summary */}
           <div className="grid grid-cols-2 gap-3 text-sm">
             {userInsights.profile?.personality?.dominant_style && (
-              <div className="bg-pink-50 rounded-lg p-2">
-                <div className="text-pink-600 font-medium">Style</div>
+              <div className="bg-indigo-50 rounded-lg p-2">
+                <div className="text-slate-600 font-medium">Style</div>
                 <div className={getStyleColor(userInsights.profile.personality.dominant_style)}>
                   {userInsights.profile.personality.dominant_style}
                 </div>
@@ -123,8 +123,8 @@ export default function UserInsightsPanel({
             )}
             
             {userInsights.profile?.relationship?.phase && (
-              <div className="bg-pink-50 rounded-lg p-2">
-                <div className="text-pink-600 font-medium">Phase</div>
+              <div className="bg-indigo-50 rounded-lg p-2">
+                <div className="text-slate-600 font-medium">Phase</div>
                 <div className={getPhaseColor(userInsights.profile.relationship.phase)}>
                   {formatPhase(userInsights.profile.relationship.phase)}
                 </div>
@@ -132,8 +132,8 @@ export default function UserInsightsPanel({
             )}
             
             {userInsights.profile?.relationship?.trust !== undefined && (
-              <div className="bg-pink-50 rounded-lg p-2">
-                <div className="text-pink-600 font-medium">Trust</div>
+              <div className="bg-indigo-50 rounded-lg p-2">
+                <div className="text-slate-600 font-medium">Trust</div>
                 <div className={getRelationshipColor(userInsights.profile.relationship.trust)}>
                   {formatPercentage(userInsights.profile.relationship.trust)}
                 </div>
@@ -141,8 +141,8 @@ export default function UserInsightsPanel({
             )}
             
             {userInsights.profile?.relationship?.familiarity !== undefined && (
-              <div className="bg-pink-50 rounded-lg p-2">
-                <div className="text-pink-600 font-medium">Familiarity</div>
+              <div className="bg-indigo-50 rounded-lg p-2">
+                <div className="text-slate-600 font-medium">Familiarity</div>
                 <div className={getRelationshipColor(userInsights.profile.relationship.familiarity)}>
                   {formatPercentage(userInsights.profile.relationship.familiarity)}
                 </div>
@@ -152,21 +152,21 @@ export default function UserInsightsPanel({
 
           {/* Expanded Details */}
           {isExpanded && (
-            <div className="space-y-4 pt-3 border-t border-pink-200">
+            <div className="space-y-4 pt-3 border-t border-indigo-200">
               {/* Personality Insights */}
               {userInsights.profile?.personality && (
                 <div>
-                  <h4 className="text-sm font-semibold text-pink-700 mb-2">Personality</h4>
-                  <div className="bg-pink-50 rounded-lg p-3 space-y-2">
+                  <h4 className="text-sm font-semibold text-slate-600 mb-2">Personality</h4>
+                  <div className="bg-indigo-50 rounded-lg p-3 space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-sm text-pink-600">Dominant Style:</span>
+                      <span className="text-sm text-slate-600">Dominant Style:</span>
                       <span className={getStyleColor(userInsights.profile.personality.dominant_style || '')}>
                         {userInsights.profile.personality.dominant_style}
                       </span>
                     </div>
                     {userInsights.profile.personality.confidence_level !== undefined && (
                       <div className="flex justify-between">
-                        <span className="text-sm text-pink-600">Confidence:</span>
+                        <span className="text-sm text-slate-600">Confidence:</span>
                         <span className="text-sm text-gray-700">
                           {formatPercentage(userInsights.profile.personality.confidence_level)}
                         </span>
@@ -179,17 +179,17 @@ export default function UserInsightsPanel({
               {/* Relationship Details */}
               {userInsights.profile?.relationship && (
                 <div>
-                  <h4 className="text-sm font-semibold text-pink-700 mb-2">Relationship</h4>
-                  <div className="bg-pink-50 rounded-lg p-3 space-y-2">
+                  <h4 className="text-sm font-semibold text-slate-600 mb-2">Relationship</h4>
+                  <div className="bg-indigo-50 rounded-lg p-3 space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-sm text-pink-600">Phase:</span>
+                      <span className="text-sm text-slate-600">Phase:</span>
                       <span className={getPhaseColor(userInsights.profile.relationship.phase || '')}>
                         {formatPhase(userInsights.profile.relationship.phase || '')}
                       </span>
                     </div>
                     {userInsights.profile.relationship.trust !== undefined && (
                       <div className="flex justify-between">
-                        <span className="text-sm text-pink-600">Trust:</span>
+                        <span className="text-sm text-slate-600">Trust:</span>
                         <span className={getRelationshipColor(userInsights.profile.relationship.trust)}>
                           {formatPercentage(userInsights.profile.relationship.trust)}
                         </span>
@@ -197,7 +197,7 @@ export default function UserInsightsPanel({
                     )}
                     {userInsights.profile.relationship.affection !== undefined && (
                       <div className="flex justify-between">
-                        <span className="text-sm text-pink-600">Affection:</span>
+                        <span className="text-sm text-slate-600">Affection:</span>
                         <span className={getRelationshipColor(userInsights.profile.relationship.affection)}>
                           {formatPercentage(userInsights.profile.relationship.affection)}
                         </span>
@@ -210,11 +210,11 @@ export default function UserInsightsPanel({
               {/* Memory Insights */}
               {userInsights.profile?.memory && (
                 <div>
-                  <h4 className="text-sm font-semibold text-pink-700 mb-2">Memory</h4>
-                  <div className="bg-pink-50 rounded-lg p-3 space-y-2">
+                  <h4 className="text-sm font-semibold text-slate-600 mb-2">Memory</h4>
+                  <div className="bg-indigo-50 rounded-lg p-3 space-y-2">
                     {userInsights.profile.memory.recent_interactions !== undefined && (
                       <div className="flex justify-between">
-                        <span className="text-sm text-pink-600">Recent Interactions:</span>
+                        <span className="text-sm text-slate-600">Recent Interactions:</span>
                         <span className="text-sm text-gray-700">
                           {userInsights.profile.memory.recent_interactions}
                         </span>
@@ -222,7 +222,7 @@ export default function UserInsightsPanel({
                     )}
                     {userInsights.profile.memory.favorite_activities && userInsights.profile.memory.favorite_activities.length > 0 && (
                       <div>
-                        <span className="text-sm text-pink-600">Favorite Activity:</span>
+                        <span className="text-sm text-slate-600">Favorite Activity:</span>
                         <div className="text-sm text-gray-700 mt-1">
                           {userInsights.profile.memory.favorite_activities[0][0]} ({userInsights.profile.memory.favorite_activities[0][1]} times)
                         </div>
@@ -235,17 +235,17 @@ export default function UserInsightsPanel({
               {/* Predictions */}
               {userInsights.prediction && (
                 <div>
-                  <h4 className="text-sm font-semibold text-pink-700 mb-2">Predictions</h4>
-                  <div className="bg-pink-50 rounded-lg p-3 space-y-2">
+                  <h4 className="text-sm font-semibold text-slate-600 mb-2">Predictions</h4>
+                  <div className="bg-indigo-50 rounded-lg p-3 space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-sm text-pink-600">Likely Need:</span>
+                      <span className="text-sm text-slate-600">Likely Need:</span>
                       <span className="text-sm text-gray-700 capitalize">
                         {userInsights.prediction.likely_need}
                       </span>
                     </div>
                     {userInsights.prediction.confidence !== undefined && (
                       <div className="flex justify-between">
-                        <span className="text-sm text-pink-600">Confidence:</span>
+                        <span className="text-sm text-slate-600">Confidence:</span>
                         <span className="text-sm text-gray-700">
                           {formatPercentage(userInsights.prediction.confidence)}
                         </span>
@@ -253,7 +253,7 @@ export default function UserInsightsPanel({
                     )}
                     {userInsights.prediction.suggested_response && (
                       <div className="flex justify-between">
-                        <span className="text-sm text-pink-600">Suggested Response:</span>
+                        <span className="text-sm text-slate-600">Suggested Response:</span>
                         <span className="text-sm text-gray-700 capitalize">
                           {userInsights.prediction.suggested_response}
                         </span>
@@ -266,12 +266,12 @@ export default function UserInsightsPanel({
               {/* Adaptation Suggestions */}
               {userInsights.adaptation_suggestions && userInsights.adaptation_suggestions.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-pink-700 mb-2">Adaptation Suggestions</h4>
-                  <div className="bg-pink-50 rounded-lg p-3">
+                  <h4 className="text-sm font-semibold text-slate-600 mb-2">Adaptation Suggestions</h4>
+                  <div className="bg-indigo-50 rounded-lg p-3">
                     <ul className="space-y-1">
                       {userInsights.adaptation_suggestions.map((suggestion, index) => (
                         <li key={index} className="text-sm text-gray-700 flex items-start">
-                          <span className="text-pink-500 mr-2">•</span>
+                          <span className="text-slate-600 mr-2">•</span>
                           {suggestion}
                         </li>
                       ))}
@@ -283,7 +283,7 @@ export default function UserInsightsPanel({
           )}
         </div>
       ) : (
-        <div className="text-center text-pink-600 text-sm py-4">
+        <div className="text-center text-slate-600 text-sm py-4">
           No relationship data available yet. Start chatting to build a relationship! 💕
         </div>
       )}

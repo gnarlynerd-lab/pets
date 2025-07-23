@@ -14,8 +14,8 @@ export function UserMenu({ onOpenAuth }: UserMenuProps) {
   if (isLoading) {
     return (
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-pink-200 rounded-full animate-pulse"></div>
-        <div className="w-20 h-4 bg-pink-200 rounded animate-pulse"></div>
+        <div className="w-8 h-8 bg-slate-500 rounded-full animate-pulse"></div>
+        <div className="w-20 h-4 bg-slate-500 rounded animate-pulse"></div>
       </div>
     )
   }
@@ -26,7 +26,7 @@ export function UserMenu({ onOpenAuth }: UserMenuProps) {
         onClick={onOpenAuth}
         variant="outline"
         size="sm"
-        className="border-pink-300 text-pink-700 hover:bg-pink-50"
+        className="border-indigo-300 text-slate-600 hover:bg-indigo-50"
       >
         <User className="w-4 h-4 mr-2" />
         Sign In
@@ -46,14 +46,14 @@ export function UserMenu({ onOpenAuth }: UserMenuProps) {
 
       {/* User Info */}
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center">
+        <div className="w-8 h-8 bg-slate-500 rounded-full flex items-center justify-center">
           <span className="text-white text-sm font-semibold">
             {user.username.charAt(0).toUpperCase()}
           </span>
         </div>
         <div className="text-sm">
-          <div className="font-medium text-pink-700">{user.username}</div>
-          <div className="text-pink-500 text-xs">{user.email}</div>
+          <div className="font-medium text-slate-600">{user.username}</div>
+          <div className="text-slate-600 text-xs">{user.email}</div>
         </div>
       </div>
 
@@ -62,7 +62,7 @@ export function UserMenu({ onOpenAuth }: UserMenuProps) {
         onClick={logout}
         variant="outline"
         size="sm"
-        className="border-pink-300 text-pink-700 hover:bg-pink-50"
+        className="border-indigo-300 text-slate-600 hover:bg-indigo-50"
       >
         <LogOut className="w-4 h-4" />
       </Button>

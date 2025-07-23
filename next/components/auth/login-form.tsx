@@ -30,7 +30,7 @@ export function LoginForm({ onSwitchToRegister, onClose }: LoginFormProps) {
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <div className="relative">
-          <Mail className="absolute left-3 top-3 h-4 w-4 text-pink-400" />
+          <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-600" />
           <Input
             id="email"
             type="email"
@@ -46,7 +46,7 @@ export function LoginForm({ onSwitchToRegister, onClose }: LoginFormProps) {
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
         <div className="relative">
-          <Lock className="absolute left-3 top-3 h-4 w-4 text-pink-400" />
+          <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-600" />
           <Input
             id="password"
             type="password"
@@ -68,7 +68,7 @@ export function LoginForm({ onSwitchToRegister, onClose }: LoginFormProps) {
       <div className="space-y-3">
         <Button
           type="submit"
-          className="w-full bg-pink-600 hover:bg-pink-700 text-white"
+          className="w-full bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white"
           disabled={isLoading}
         >
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -79,7 +79,7 @@ export function LoginForm({ onSwitchToRegister, onClose }: LoginFormProps) {
           <button
             type="button"
             onClick={onSwitchToRegister}
-            className="text-sm text-pink-600 hover:text-pink-700 underline"
+            className="text-sm text-slate-600 hover:text-slate-600 underline"
           >
             Don't have an account? Sign up
           </button>

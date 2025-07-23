@@ -54,16 +54,16 @@ export default function EmojiInteraction({ onSendEmoji, isLoading }: EmojiIntera
   }
 
   return (
-    <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-pink-200 shadow-lg">
-      <h3 className="text-lg font-semibold text-pink-700 mb-3 font-sans">Communicate with Emojis</h3>
+    <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-slate-200/50 shadow-xl hover:shadow-2xl transition-all duration-300">
+      <h3 className="text-xl font-semibold text-indigo-700 mb-4 font-sans">Communicate with Emojis</h3>
       
       {/* Input and Send Area */}
       <div className="flex flex-col sm:flex-row items-stretch gap-2 mb-3">
         {/* Input display */}
-        <div className="flex-1 bg-pink-50/70 rounded-lg p-3 min-h-[50px] flex items-center border border-pink-200">
+        <div className="flex-1 bg-slate-50/70 rounded-lg p-4 min-h-[50px] flex items-center border border-slate-200/30 shadow-inner">
           <div className="text-xl flex-1">
             {selectedEmojis || (
-              <span className="text-pink-400 text-sm">Select emojis to communicate...</span>
+              <span className="text-slate-400 text-sm">Select emojis to communicate...</span>
             )}
           </div>
           <div className="flex gap-1 ml-2">
@@ -72,7 +72,7 @@ export default function EmojiInteraction({ onSendEmoji, isLoading }: EmojiIntera
               size="sm"
               onClick={handleBackspace}
               disabled={!selectedEmojis}
-              className="h-7 w-7 p-0 text-pink-600 hover:bg-pink-100"
+              className="h-7 w-7 p-0 text-slate-600 hover:bg-slate-100"
             >
               ⌫
             </Button>
@@ -81,7 +81,7 @@ export default function EmojiInteraction({ onSendEmoji, isLoading }: EmojiIntera
               size="sm"
               onClick={handleClear}
               disabled={!selectedEmojis}
-              className="h-7 px-2 text-pink-600 hover:bg-pink-100 text-xs"
+              className="h-7 px-3 text-slate-600 hover:bg-slate-100 text-xs font-medium"
             >
               Clear
             </Button>
@@ -92,7 +92,7 @@ export default function EmojiInteraction({ onSendEmoji, isLoading }: EmojiIntera
         <Button
           onClick={handleSend}
           disabled={!selectedEmojis.trim() || isLoading}
-          className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-6 h-[50px]"
+          className="bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white px-8 h-[50px] font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0"
         >
           {isLoading ? (
             <>
@@ -111,7 +111,7 @@ export default function EmojiInteraction({ onSendEmoji, isLoading }: EmojiIntera
           variant="outline"
           size="sm"
           onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-          className="border-pink-200 text-pink-600 hover:bg-pink-50"
+          className="border-slate-200 text-slate-600 hover:bg-slate-50"
         >
           {showEmojiPicker ? 'Hide' : 'Show'} Emoji Picker
         </Button>
@@ -122,7 +122,7 @@ export default function EmojiInteraction({ onSendEmoji, isLoading }: EmojiIntera
             <Button
               key={emoji}
               variant="ghost"
-              className="aspect-square text-lg p-1 text-pink-600 hover:bg-pink-50 hover:scale-110 transition-transform flex-shrink-0 border border-pink-100"
+              className="aspect-square text-lg p-1 text-slate-600 hover:bg-slate-100 hover:scale-110 transition-all duration-200 flex-shrink-0 border border-slate-200/50 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
               onClick={() => handleEmojiClick(emoji)}
               disabled={isLoading}
             >
@@ -134,7 +134,7 @@ export default function EmojiInteraction({ onSendEmoji, isLoading }: EmojiIntera
 
       {/* Collapsible Emoji Picker */}
       {showEmojiPicker && (
-        <div className="space-y-3 border-t border-pink-200 pt-3">
+        <div className="space-y-4 border-t border-slate-200 pt-4">
           {/* Category tabs */}
           <div className="flex gap-1 overflow-x-auto">
             {Object.entries(EMOJI_CATEGORIES).map(([key, category]) => (
@@ -143,10 +143,10 @@ export default function EmojiInteraction({ onSendEmoji, isLoading }: EmojiIntera
                 variant={activeCategory === key ? "default" : "outline"}
                 size="sm"
                 onClick={() => setActiveCategory(key as keyof typeof EMOJI_CATEGORIES)}
-                className={`whitespace-nowrap text-xs flex-shrink-0 ${
+                className={`whitespace-nowrap text-sm flex-shrink-0 font-medium ${
                   activeCategory === key 
-                    ? 'bg-pink-500 hover:bg-pink-600' 
-                    : 'border-pink-200 text-pink-600 hover:bg-pink-50'
+                    ? 'bg-indigo-500 hover:bg-indigo-600 text-white' 
+                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
               >
                 {category.name}
@@ -155,12 +155,12 @@ export default function EmojiInteraction({ onSendEmoji, isLoading }: EmojiIntera
           </div>
 
           {/* Emoji grid */}
-          <div className="grid grid-cols-6 gap-1 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-pink-300 scrollbar-track-pink-100">
+          <div className="grid grid-cols-6 gap-2 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
             {EMOJI_CATEGORIES[activeCategory].emojis.map((emoji) => (
               <Button
                 key={emoji}
                 variant="ghost"
-                className="aspect-square text-lg p-0 text-pink-600 hover:bg-pink-50 hover:scale-110 transition-transform border border-pink-100"
+                className="aspect-square text-lg p-0 text-slate-600 hover:bg-slate-100 hover:scale-110 transition-all duration-200 border border-slate-200/50 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
                 onClick={() => handleEmojiClick(emoji)}
                 disabled={isLoading}
               >
@@ -172,8 +172,8 @@ export default function EmojiInteraction({ onSendEmoji, isLoading }: EmojiIntera
       )}
 
       {/* Quick suggestions */}
-      <div className="mt-3 pt-3 border-t border-pink-200">
-        <p className="text-sm text-pink-600 mb-2 font-sans">Quick suggestions:</p>
+      <div className="mt-4 pt-4 border-t border-slate-200">
+        <p className="text-sm text-slate-600 mb-3 font-sans font-medium">Quick suggestions:</p>
         <div className="flex flex-wrap gap-2">
           {['👋😊', '🍎😋', '🎮🎯', '❤️✨', '😴💤'].map((suggestion) => (
             <Button
@@ -182,7 +182,7 @@ export default function EmojiInteraction({ onSendEmoji, isLoading }: EmojiIntera
               size="sm"
               onClick={() => setSelectedEmojis(suggestion)}
               disabled={isLoading}
-              className="text-lg h-8 text-pink-600 hover:bg-pink-50 border border-pink-200"
+              className="text-lg h-10 px-3 text-slate-600 hover:bg-slate-100 border border-slate-200/50 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0"
             >
               {suggestion}
             </Button>

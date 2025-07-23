@@ -19,7 +19,7 @@ export function SaveCompanionBanner({ onSignIn, petName, interactionCount }: Sav
 
   return (
     <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto animate-slide-up">
-      <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl shadow-xl p-4 text-white">
+      <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-2xl shadow-xl p-4 text-white">
         <button
           onClick={() => setIsDismissed(true)}
           className="absolute top-2 right-2 text-white/70 hover:text-white"
@@ -39,7 +39,7 @@ export function SaveCompanionBanner({ onSignIn, petName, interactionCount }: Sav
           <div className="flex items-center gap-3">
             <button
               onClick={onSignIn}
-              className="bg-white text-purple-600 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-white/90 transition-colors"
+              className="bg-white text-indigo-600 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-white/90 transition-colors"
             >
               Sign Up Free
             </button>

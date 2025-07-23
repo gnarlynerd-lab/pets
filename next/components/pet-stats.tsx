@@ -80,7 +80,7 @@ export default function PetStats({ petData }: PetStatsProps) {
               <div className="flex items-center gap-1">
                 <div className="w-16 bg-slate-700 rounded-full h-1.5">
                   <div 
-                    className="h-full bg-gradient-to-r from-purple-400 to-pink-400 rounded-full transition-all duration-300"
+                    className="h-full bg-gradient-to-r from-indigo-400 to-indigo-500 rounded-full transition-all duration-300"
                     style={{ width: `${Math.round(value * 100)}%` }}
                   />
                 </div>

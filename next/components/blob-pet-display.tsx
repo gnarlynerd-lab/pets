@@ -112,11 +112,11 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
   }
 
   return (
-    <div className="bg-gradient-to-br from-pink-100 to-purple-100 rounded-3xl shadow-lg border-2 border-pink-200 p-6 min-h-[350px] flex flex-col items-center justify-center w-full">
+    <div className="bg-gradient-to-br from-indigo-100 to-slate-100 rounded-3xl shadow-lg border-2 border-indigo-200 p-6 min-h-[350px] flex flex-col items-center justify-center w-full">
       {/* Loading overlay */}
       {isLoading && (
         <div className="absolute inset-0 bg-white/20 backdrop-blur-sm z-20 flex items-center justify-center rounded-3xl">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
         </div>
       )}
 
@@ -126,7 +126,7 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
           viewBox="0 0 200 200"
           className="w-full h-full"
           style={{
-            filter: 'drop-shadow(0 4px 8px rgba(236, 72, 153, 0.3))'
+            filter: 'drop-shadow(0 4px 8px rgba(79, 70, 229, 0.3))'
           }}
         >
           {/* Blob body */}
@@ -139,9 +139,9 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
           {/* Gradient definition */}
           <defs>
             <linearGradient id="blobGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#FF9AA2" />
-              <stop offset="50%" stopColor="#FFB7B2" />
-              <stop offset="100%" stopColor="#FFDAC1" />
+              <stop offset="0%" stopColor="#A5B4FC" />
+              <stop offset="50%" stopColor="#C7D2FE" />
+              <stop offset="100%" stopColor="#E0E7FF" />
             </linearGradient>
           </defs>
 
@@ -207,7 +207,7 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
 
       {/* Pet's emoji message */}
       {displayMessage && (
-        <div className="bg-purple-100 rounded-2xl px-4 py-2 border border-purple-200 shadow-md mb-4">
+        <div className="bg-indigo-100 rounded-2xl px-4 py-2 border border-indigo-200 shadow-md mb-4">
           <div className={`text-2xl ${isAnimating ? 'animate-bounce' : ''}`}>
             {displayMessage}
           </div>
@@ -216,10 +216,10 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
 
       {/* Pet name and status */}
       <div className="text-center">
-        <h2 className="text-xl font-bold text-pink-700 mb-1 font-sans">
+        <h2 className="text-xl font-bold text-indigo-700 mb-1 font-sans">
           {petName || petData?.id || 'Blobby'}
         </h2>
-        <p className="text-purple-600 text-sm font-sans">
+        <p className="text-indigo-600 text-sm font-sans">
           {petData?.personality_summary || 'Getting to know you...'}
         </p>
       </div>
@@ -227,7 +227,7 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
       {/* Interaction hints */}
       {!displayMessage && (
         <div className="text-center mt-4">
-          <p className="text-pink-600 text-sm font-sans opacity-60">
+          <p className="text-slate-600 text-sm font-sans opacity-70">
             Say hello with emojis! 👋😊
           </p>
         </div>
