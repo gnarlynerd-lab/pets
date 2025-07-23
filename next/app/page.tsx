@@ -33,7 +33,7 @@ export default function Home() {
 
   const [isEditingName, setIsEditingName] = useState(false)
   const [tempPetName, setTempPetName] = useState(petName || '')
-  const [userInsights, setUserInsights] = useState(null)
+  const [userInsights, setUserInsights] = useState<any>(null)
   const [showUserInsights, setShowUserInsights] = useState(false)
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
   const [migrationStatus, setMigrationStatus] = useState<{ 
@@ -106,16 +106,16 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50">
-      <div className="container mx-auto px-4 py-8">
+    <main className="min-h-screen bg-gray-900 text-gray-100 font-mono">
+      <div className="container mx-auto px-4 py-4">
         {/* Header with Auth */}
         <div className="flex justify-between items-start mb-8">
           <div className="text-center flex-1">
-            <h1 className="text-4xl md:text-6xl font-bold text-indigo-700 mb-2 font-sans">
-              Digital Ecosystem
+            <h1 className="text-2xl md:text-3xl font-bold text-green-400 mb-2">
+              DKS://Digital_Kinetic_Systems v0.1.0
             </h1>
-            <p className="text-slate-600 text-lg font-sans">
-              Connect with autonomous digital companions
+            <p className="text-gray-500 text-sm">
+              [SYSTEM] Initializing companion development environment...
             </p>
           </div>
           
@@ -148,9 +148,9 @@ export default function Home() {
             {/* Chat and Interaction Area */}
             <div className="space-y-6">
               {/* Chat History */}
-              <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/50 p-6 hover:shadow-2xl transition-all duration-300">
+              <div className="bg-gray-800 border border-gray-700 p-4 shadow-lg">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-indigo-700 font-sans">Conversation</h3>
+              <h3 className="text-sm font-bold text-green-400 mb-1">[TERMINAL] Companion I/O Stream</h3>
               
               {/* Pet Name Editor */}
               <div className="flex items-center gap-2">
@@ -160,19 +160,19 @@ export default function Home() {
                       type="text"
                       value={tempPetName}
                       onChange={(e) => setTempPetName(e.target.value)}
-                      className="text-sm px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="text-sm px-3 py-2 bg-gray-800 border border-gray-600 text-green-400 font-mono focus:outline-none focus:ring-1 focus:ring-green-400 focus:border-green-400"
                       placeholder="Companion name..."
                       maxLength={20}
                     />
                     <button
                       onClick={handleNameSave}
-                      className="bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white text-sm px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0"
+                      className="bg-green-600 hover:bg-green-500 text-black text-sm px-4 py-2 font-bold transition-all duration-200 border border-green-400"
                     >
                       Save
                     </button>
                     <button
                       onClick={handleNameCancel}
-                      className="border border-slate-300 hover:border-slate-400 text-slate-600 hover:text-slate-700 text-sm px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:bg-slate-50 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 active:translate-y-0"
+                      className="bg-gray-700 border border-gray-600 hover:bg-gray-600 text-gray-300 text-sm px-4 py-2 font-medium transition-all duration-200"
                     >
                       Cancel
                     </button>
@@ -180,7 +180,7 @@ export default function Home() {
                 ) : (
                   <button
                     onClick={() => setIsEditingName(true)}
-                    className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 text-sm px-3 py-2 rounded-lg font-medium transition-all duration-200 hover:shadow-md transform hover:-translate-y-0.5 active:translate-y-0"
+                    className="text-green-400 hover:text-green-300 hover:bg-gray-800 text-sm px-3 py-2 font-mono transition-all duration-200 border border-transparent hover:border-gray-700"
                   >
                     {petName ? `Companion: ${petName}` : 'Meet Companion'}
                   </button>
@@ -190,34 +190,27 @@ export default function Home() {
             
             <div 
               ref={chatContainerRef}
-              className="bg-slate-50/70 rounded-2xl p-6 h-96 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100"
+              className="bg-black border border-gray-700 p-4 h-96 overflow-y-auto space-y-2 font-mono text-sm scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800"
             >
               {interactionHistory.length === 0 ? (
-                <div className="text-center text-slate-500 text-sm font-sans py-12">
-                  No conversations yet. Connect with your companion! 👋
+                <div className="text-gray-500 text-xs">
+                  <div>[SYSTEM] Companion process initialized</div>
+                  <div>[SYSTEM] Awaiting user input...</div>
+                  <div className="mt-2 text-green-400">$ </div>
                 </div>
               ) : (
                 <>
                   {interactionHistory.slice(-20).map((interaction, index) => (
                     <div key={`${interaction.timestamp || index}-${index}`} className="space-y-2">
-                      {/* User message */}
-                      <div className="flex justify-end">
-                        <div className="bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-2xl px-4 py-3 max-w-xs shadow-lg border border-indigo-200/30 hover:shadow-xl transition-all duration-200">
-                          <div className="text-xl">
-                            {interaction.userEmojis}
-                          </div>
-                          <div className="text-xs text-indigo-600 mt-1 font-medium">You</div>
-                        </div>
+                      {/* User input */}
+                      <div className="text-green-400">
+                        <span className="text-gray-500">user@dks:~$</span> send_emoji "{interaction.userEmojis}"
                       </div>
                       
-                      {/* Pet response */}
-                      <div className="flex justify-start">
-                        <div className="bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl px-4 py-3 max-w-xs shadow-lg border border-slate-200/30 hover:shadow-xl transition-all duration-200">
-                          <div className="text-xl">
-                            {interaction.petResponse}
-                          </div>
-                          <div className="text-xs text-slate-600 mt-1 font-medium">{petName || 'Companion'}</div>
-                        </div>
+                      {/* Companion response */}
+                      <div className="text-gray-300 ml-4">
+                        <div className="text-yellow-400 text-xs">[{new Date().toLocaleTimeString('en-US', { hour12: false })}] COMPANION_RESPONSE:</div>
+                        <div className="ml-2">{interaction.petResponse}</div>
                       </div>
                     </div>
                   ))}

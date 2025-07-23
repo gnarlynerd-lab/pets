@@ -81,17 +81,17 @@ export default function UserInsightsPanel({
   }
 
   return (
-    <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-indigo-200 shadow-lg">
+    <div className="bg-gray-800 border border-gray-700 p-4 font-mono">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold text-slate-600 font-sans">
-          Relationship Insights
+        <h3 className="text-sm font-bold text-green-400 mb-1">
+          [DEBUG] User_Model.insights
         </h3>
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="border-indigo-200 text-slate-600 hover:bg-indigo-50"
+            className="border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-green-400 font-mono text-xs"
           >
             {isExpanded ? 'Hide' : 'Show'} Details
           </Button>
@@ -101,7 +101,7 @@ export default function UserInsightsPanel({
               size="sm"
               onClick={onRefresh}
               disabled={isLoading}
-              className="border-indigo-200 text-slate-600 hover:bg-indigo-50"
+              className="border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-green-400 font-mono text-xs"
             >
               {isLoading ? '...' : '↻'}
             </Button>
@@ -114,8 +114,8 @@ export default function UserInsightsPanel({
           {/* Quick Summary */}
           <div className="grid grid-cols-2 gap-3 text-sm">
             {userInsights.profile?.personality?.dominant_style && (
-              <div className="bg-indigo-50 rounded-lg p-2">
-                <div className="text-slate-600 font-medium">Style</div>
+              <div className="bg-black border border-gray-600 rounded-lg p-2">
+                <div className="text-yellow-400 text-xs">user.style:</div>
                 <div className={getStyleColor(userInsights.profile.personality.dominant_style)}>
                   {userInsights.profile.personality.dominant_style}
                 </div>
@@ -123,8 +123,8 @@ export default function UserInsightsPanel({
             )}
             
             {userInsights.profile?.relationship?.phase && (
-              <div className="bg-indigo-50 rounded-lg p-2">
-                <div className="text-slate-600 font-medium">Phase</div>
+              <div className="bg-black border border-gray-600 rounded-lg p-2">
+                <div className="text-yellow-400 text-xs">relationship.phase:</div>
                 <div className={getPhaseColor(userInsights.profile.relationship.phase)}>
                   {formatPhase(userInsights.profile.relationship.phase)}
                 </div>
@@ -132,8 +132,8 @@ export default function UserInsightsPanel({
             )}
             
             {userInsights.profile?.relationship?.trust !== undefined && (
-              <div className="bg-indigo-50 rounded-lg p-2">
-                <div className="text-slate-600 font-medium">Trust</div>
+              <div className="bg-black border border-gray-600 rounded-lg p-2">
+                <div className="text-yellow-400 text-xs">trust_level:</div>
                 <div className={getRelationshipColor(userInsights.profile.relationship.trust)}>
                   {formatPercentage(userInsights.profile.relationship.trust)}
                 </div>
@@ -141,8 +141,8 @@ export default function UserInsightsPanel({
             )}
             
             {userInsights.profile?.relationship?.familiarity !== undefined && (
-              <div className="bg-indigo-50 rounded-lg p-2">
-                <div className="text-slate-600 font-medium">Familiarity</div>
+              <div className="bg-black border border-gray-600 rounded-lg p-2">
+                <div className="text-yellow-400 text-xs">familiarity:</div>
                 <div className={getRelationshipColor(userInsights.profile.relationship.familiarity)}>
                   {formatPercentage(userInsights.profile.relationship.familiarity)}
                 </div>
@@ -157,7 +157,7 @@ export default function UserInsightsPanel({
               {userInsights.profile?.personality && (
                 <div>
                   <h4 className="text-sm font-semibold text-slate-600 mb-2">Personality</h4>
-                  <div className="bg-indigo-50 rounded-lg p-3 space-y-2">
+                  <div className="bg-black border border-gray-600 rounded-lg p-3 space-y-2">
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-600">Dominant Style:</span>
                       <span className={getStyleColor(userInsights.profile.personality.dominant_style || '')}>
@@ -180,7 +180,7 @@ export default function UserInsightsPanel({
               {userInsights.profile?.relationship && (
                 <div>
                   <h4 className="text-sm font-semibold text-slate-600 mb-2">Relationship</h4>
-                  <div className="bg-indigo-50 rounded-lg p-3 space-y-2">
+                  <div className="bg-black border border-gray-600 rounded-lg p-3 space-y-2">
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-600">Phase:</span>
                       <span className={getPhaseColor(userInsights.profile.relationship.phase || '')}>
@@ -211,7 +211,7 @@ export default function UserInsightsPanel({
               {userInsights.profile?.memory && (
                 <div>
                   <h4 className="text-sm font-semibold text-slate-600 mb-2">Memory</h4>
-                  <div className="bg-indigo-50 rounded-lg p-3 space-y-2">
+                  <div className="bg-black border border-gray-600 rounded-lg p-3 space-y-2">
                     {userInsights.profile.memory.recent_interactions !== undefined && (
                       <div className="flex justify-between">
                         <span className="text-sm text-slate-600">Recent Interactions:</span>
@@ -236,7 +236,7 @@ export default function UserInsightsPanel({
               {userInsights.prediction && (
                 <div>
                   <h4 className="text-sm font-semibold text-slate-600 mb-2">Predictions</h4>
-                  <div className="bg-indigo-50 rounded-lg p-3 space-y-2">
+                  <div className="bg-black border border-gray-600 rounded-lg p-3 space-y-2">
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-600">Likely Need:</span>
                       <span className="text-sm text-gray-700 capitalize">
@@ -267,7 +267,7 @@ export default function UserInsightsPanel({
               {userInsights.adaptation_suggestions && userInsights.adaptation_suggestions.length > 0 && (
                 <div>
                   <h4 className="text-sm font-semibold text-slate-600 mb-2">Adaptation Suggestions</h4>
-                  <div className="bg-indigo-50 rounded-lg p-3">
+                  <div className="bg-black border border-gray-600 rounded-lg p-3">
                     <ul className="space-y-1">
                       {userInsights.adaptation_suggestions.map((suggestion, index) => (
                         <li key={index} className="text-sm text-gray-700 flex items-start">

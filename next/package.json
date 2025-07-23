@@ -20,6 +20,7 @@
     "next": "15.2.4",
     "react": "^19",
     "react-dom": "^19",
+    "roughjs": "^4.6.6",
     "sonner": "^1.7.1",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7"
