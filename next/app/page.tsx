@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import BlobPetDisplay from '@/components/blob-pet-display'
 import EmojiInteraction from '@/components/emoji-interaction'
 import UserInsightsPanel from '@/components/user-insights-panel'
+import ConsciousnessDashboard from '@/components/consciousness-dashboard'
 import { AuthDialog } from '@/components/auth/auth-dialog'
 import { UserMenu } from '@/components/auth/user-menu'
 import { SaveCompanionBanner } from '@/components/save-companion-banner'
@@ -240,6 +241,14 @@ export default function Home() {
                   console.log('Refreshing user insights...')
                 }}
               />
+              
+              {/* Consciousness Dashboard */}
+              {petData?.consciousness?.semantic_active && (
+                <ConsciousnessDashboard 
+                  petData={petData}
+                  memories={[]}
+                />
+              )}
               
               {/* Session Status */}
               <ClientOnly fallback={

@@ -23,6 +23,10 @@ pandas==2.0.3
 pydantic==2.5.0
 python-dotenv==1.0.0
 
+# LLM integration
+openai==1.51.0
+httpx==0.27.0
+
 # Free Energy Principle implementation
 # pymdp==0.0.1  # Basic version, using custom numpy implementation instead
 

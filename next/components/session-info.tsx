@@ -47,7 +47,7 @@ export function SessionInfo({
         {interactionCount > 0 && (
           <button
             onClick={onSignIn}
-            className="text-xs bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-md font-medium transition-colors"
+            className="text-xs bg-orange-500 hover:bg-orange-600 text-white hover:text-white px-3 py-1.5 rounded-md font-medium transition-colors"
           >
             Save Progress
           </button>

@@ -26,7 +26,7 @@ export function UserMenu({ onOpenAuth }: UserMenuProps) {
         onClick={onOpenAuth}
         variant="outline"
         size="sm"
-        className="border-indigo-300 text-slate-600 hover:bg-indigo-50"
+        className="border-indigo-300 text-slate-600 hover:bg-indigo-100 hover:text-slate-700"
       >
         <User className="w-4 h-4 mr-2" />
         Sign In
@@ -62,7 +62,7 @@ export function UserMenu({ onOpenAuth }: UserMenuProps) {
         onClick={logout}
         variant="outline"
         size="sm"
-        className="border-indigo-300 text-slate-600 hover:bg-indigo-50"
+        className="border-indigo-300 text-slate-600 hover:bg-indigo-100 hover:text-slate-700"
       >
         <LogOut className="w-4 h-4" />
       </Button>

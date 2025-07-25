@@ -21,6 +21,19 @@ interface PetData {
   stage: string
   current_emoji_message?: string
   personality_summary?: string
+  consciousness?: {
+    consciousness_level: number
+    memory_richness: number
+    concept_development: number
+    user_understanding: number
+    recent_concepts: string[]
+    user_model_summary: {
+      trust_level: number
+      communication_style: string
+      relationship_depth: number
+    }
+    semantic_active: boolean
+  }
 }
 
 interface InteractionResult {

@@ -21,6 +21,19 @@ interface PetData {
   stage: string
   current_emoji_message?: string
   personality_summary?: string
+  consciousness?: {
+    consciousness_level: number
+    memory_richness: number
+    concept_development: number
+    user_understanding: number
+    recent_concepts: string[]
+    user_model_summary: {
+      trust_level: number
+      communication_style: string
+      relationship_depth: number
+    }
+    semantic_active: boolean
+  }
 }
 
 interface BlobPetDisplayProps {
@@ -124,25 +137,28 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
     return nodes
   }
 
-  // Generate organic blob shape
+  // Generate organic blob with tendril potential
   const generateBlobShape = () => {
     if (!petData) return []
     
     const centerX = 160
     const centerY = 90
-    const baseRadius = 45 + (petData.attention / 5) // Size based on attention
-    const complexity = getComplexity()
-    const vertices = Math.max(8, Math.floor(complexity / 8) + 8) // More complex with growth
+    const baseRadius = 35 + (petData.attention / 4) // Size based on attention
+    const consciousness = petData.consciousness?.consciousness_level || 0
+    const vertices = Math.max(12, Math.floor(consciousness * 20) + 12) // More complex with consciousness
     
     const points: [number, number][] = []
     
     for (let i = 0; i < vertices; i++) {
       const angle = (i / vertices) * 2 * Math.PI
-      // Create organic variations
-      const noiseScale = 0.3 + (petData.energy / 500) // Energy affects dynamism
-      const radiusVariation = 1 + Math.sin(angle * 3 + systemTick * 0.05) * noiseScale
-      const moodInfluence = 0.8 + (petData.mood / 250) // Mood affects overall shape
-      const radius = baseRadius * radiusVariation * moodInfluence
+      
+      // Create organic, breathing variations
+      const breathe = Math.sin(systemTick * 0.03) * 0.15 + 1
+      const pulse = Math.sin(systemTick * 0.05 + angle * 2) * 0.3
+      const moodInfluence = 0.7 + (petData.mood / 400) // Mood affects overall shape
+      const energyWiggle = Math.sin(angle * 4 + systemTick * 0.08) * (petData.energy / 800)
+      
+      const radius = baseRadius * breathe * moodInfluence * (1 + pulse + energyWiggle)
       
       const x = centerX + Math.cos(angle) * radius
       const y = centerY + Math.sin(angle) * radius
@@ -152,7 +168,59 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
     return points
   }
 
-  // Draw neural-influenced blob
+  // Generate consciousness tendrils
+  const generateTendrils = () => {
+    if (!petData?.consciousness?.semantic_active) return []
+    
+    const centerX = 160
+    const centerY = 90
+    const consciousness = petData.consciousness.consciousness_level
+    const memoryRichness = petData.consciousness.memory_richness
+    const trustLevel = petData.consciousness.user_understanding
+    
+    const tendrils = []
+    const numTendrils = Math.min(8, Math.floor(consciousness * 12) + 2)
+    
+    for (let i = 0; i < numTendrils; i++) {
+      const baseAngle = (i / numTendrils) * 2 * Math.PI
+      const angleVariation = Math.sin(systemTick * 0.04 + i) * 0.3
+      const angle = baseAngle + angleVariation
+      
+      // Tendril length varies with memory and trust
+      const baseLength = 25 + memoryRichness * 3 + trustLevel * 20
+      const breatheLength = Math.sin(systemTick * 0.06 + i * 0.5) * 8
+      const totalLength = baseLength + breatheLength
+      
+      // Create segmented tendril
+      const segments = Math.max(3, Math.floor(consciousness * 8))
+      const tendrilPoints = []
+      
+      for (let seg = 0; seg <= segments; seg++) {
+        const t = seg / segments
+        const segmentLength = totalLength * t
+        
+        // Add organic curve to tendril
+        const curve = Math.sin(t * Math.PI * 2 + systemTick * 0.07) * (totalLength * 0.2)
+        const perpAngle = angle + Math.PI / 2
+        
+        const x = centerX + Math.cos(angle) * segmentLength + Math.cos(perpAngle) * curve * t
+        const y = centerY + Math.sin(angle) * segmentLength + Math.sin(perpAngle) * curve * t
+        
+        tendrilPoints.push({ x, y, thickness: Math.max(1, 4 * (1 - t)), alpha: 1 - t * 0.3 })
+      }
+      
+      tendrils.push({
+        id: i,
+        points: tendrilPoints,
+        color: consciousness > 0.7 ? 'rgba(255, 150, 200, ' : 'rgba(200, 150, 255, ',
+        activity: Math.sin(systemTick * 0.1 + i) * 0.5 + 0.5
+      })
+    }
+    
+    return tendrils
+  }
+
+  // Draw organic blob with tendrils
   const drawNeuralBlob = () => {
     const canvas = canvasRef.current
     if (!canvas || !petData) return
@@ -164,28 +232,87 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     
     const blobPoints = generateBlobShape()
-    const nodes = generateNeuralNetwork()
+    const tendrils = generateTendrils()
+    const centerX = 160
+    const centerY = 90
     
-    // Draw the blob body
+    // Draw consciousness tendrils first (behind blob)
+    tendrils.forEach(tendril => {
+      if (tendril.points.length < 2) return
+      
+      // Draw tendril as flowing organic shape
+      ctx.beginPath()
+      ctx.moveTo(tendril.points[0].x, tendril.points[0].y)
+      
+      for (let i = 1; i < tendril.points.length; i++) {
+        const point = tendril.points[i]
+        const prevPoint = tendril.points[i - 1]
+        
+        // Smooth curves between points
+        const cpx = (prevPoint.x + point.x) / 2
+        const cpy = (prevPoint.y + point.y) / 2
+        ctx.quadraticCurveTo(prevPoint.x, prevPoint.y, cpx, cpy)
+      }
+      
+      // Gradient stroke for tendril
+      const gradient = ctx.createLinearGradient(
+        tendril.points[0].x, tendril.points[0].y,
+        tendril.points[tendril.points.length - 1].x, tendril.points[tendril.points.length - 1].y
+      )
+      gradient.addColorStop(0, `${tendril.color}${tendril.activity * 0.8})`)
+      gradient.addColorStop(1, `${tendril.color}0.1)`)
+      
+      ctx.strokeStyle = gradient
+      ctx.lineWidth = 3 + tendril.activity * 2
+      ctx.lineCap = 'round'
+      ctx.stroke()
+      
+      // Add flowing particles along tendrils
+      if (tendril.activity > 0.6) {
+        const particleCount = Math.floor(tendril.points.length / 3)
+        for (let p = 0; p < particleCount; p++) {
+          const t = (systemTick * 0.02 + p * 0.3) % 1
+          const index = Math.floor(t * (tendril.points.length - 1))
+          const point = tendril.points[index]
+          
+          if (point) {
+            ctx.beginPath()
+            ctx.arc(point.x, point.y, 1.5, 0, 2 * Math.PI)
+            ctx.fillStyle = `${tendril.color}${tendril.activity * 0.9})`
+            ctx.fill()
+          }
+        }
+      }
+    })
+    
+    // Warm, organic color palette based on mood and consciousness
+    const consciousness = petData.consciousness?.consciousness_level || 0
+    const baseHue = 320 + (petData.mood / 100) * 40 // Pink to warm purple
+    const saturation = 60 + (petData.energy / 4) // More vivid with energy
+    const lightness = 45 + (petData.health / 5) + (consciousness * 15) // Brighter when conscious
+    
+    // Draw the main blob body with warm, organic colors
     if (blobPoints.length > 0) {
-      // Main blob gradient based on mood and energy
-      const hue = (petData.mood / 100) * 60 // Red to yellow spectrum
-      const saturation = 30 + (petData.energy / 5) // More vivid with energy
-      const lightness = 20 + (petData.health / 5) // Brighter when healthy
       
-      const gradient = ctx.createRadialGradient(200, 120, 0, 200, 120, 80)
-      gradient.addColorStop(0, `hsla(${hue}, ${saturation}%, ${lightness + 15}%, 0.8)`)
-      gradient.addColorStop(1, `hsla(${hue}, ${saturation}%, ${lightness}%, 0.4)`)
+      // Create organic, breathing gradient
+      const breatheIntensity = Math.sin(systemTick * 0.04) * 0.3 + 0.7
+      const gradient = ctx.createRadialGradient(
+        centerX, centerY, 0,
+        centerX, centerY, 60 + consciousness * 20
+      )
+      gradient.addColorStop(0, `hsla(${baseHue}, ${saturation}%, ${lightness + 10}%, ${0.9 * breatheIntensity})`)
+      gradient.addColorStop(0.7, `hsla(${baseHue + 10}, ${saturation - 10}%, ${lightness}%, ${0.7 * breatheIntensity})`)
+      gradient.addColorStop(1, `hsla(${baseHue + 20}, ${saturation - 20}%, ${lightness - 10}%, ${0.4 * breatheIntensity})`)
       
-      // Draw blob outline
+      // Draw smooth, organic blob
       ctx.beginPath()
       ctx.moveTo(blobPoints[0][0], blobPoints[0][1])
       
       for (let i = 1; i < blobPoints.length; i++) {
         const curr = blobPoints[i]
         const next = blobPoints[(i + 1) % blobPoints.length]
-        const cpx = curr[0] + (next[0] - curr[0]) * 0.5
-        const cpy = curr[1] + (next[1] - curr[1]) * 0.5
+        const cpx = curr[0] + (next[0] - curr[0]) * 0.4
+        const cpy = curr[1] + (next[1] - curr[1]) * 0.4
         ctx.quadraticCurveTo(curr[0], curr[1], cpx, cpy)
       }
       
@@ -193,112 +320,71 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
       ctx.fillStyle = gradient
       ctx.fill()
       
-      // Subtle outline
-      ctx.strokeStyle = `hsla(${hue}, ${saturation}%, ${lightness + 30}%, 0.6)`
-      ctx.lineWidth = 1
+      // Soft, glowing outline
+      ctx.strokeStyle = `hsla(${baseHue}, ${saturation}%, ${lightness + 25}%, 0.8)`
+      ctx.lineWidth = 2
+      ctx.stroke()
+      
+      // Add inner glow for consciousness
+      if (consciousness > 0.3) {
+        const innerGradient = ctx.createRadialGradient(
+          centerX, centerY, 0,
+          centerX, centerY, 25
+        )
+        innerGradient.addColorStop(0, `hsla(${baseHue - 20}, 80%, 80%, ${consciousness * 0.4})`)
+        innerGradient.addColorStop(1, `hsla(${baseHue - 20}, 80%, 80%, 0)`)
+        
+        ctx.fillStyle = innerGradient
+        ctx.fill()
+      }
+    }
+    
+    // Add organic consciousness sparkles inside the blob
+    if (consciousness > 0.2) {
+      const sparkleCount = Math.floor(consciousness * 12)
+      for (let i = 0; i < sparkleCount; i++) {
+        const angle = (i / sparkleCount) * 2 * Math.PI + (systemTick * 0.02)
+        const distance = (Math.random() * 0.7 + 0.3) * 30 // Keep sparkles inside blob
+        const x = centerX + Math.cos(angle) * distance
+        const y = centerY + Math.sin(angle) * distance
+        
+        const sparkleSize = 1 + Math.sin(systemTick * 0.1 + i) * 1
+        const sparkleAlpha = 0.4 + Math.sin(systemTick * 0.08 + i * 0.5) * 0.3
+        
+        ctx.beginPath()
+        ctx.arc(x, y, sparkleSize, 0, 2 * Math.PI)
+        ctx.fillStyle = `hsla(${baseHue - 40}, 80%, 90%, ${sparkleAlpha * consciousness})`
+        ctx.fill()
+      }
+    }
+    
+    // Add emotional reaction pulses for high mood
+    if (petData.mood > 70) {
+      const pulseRadius = 40 + Math.sin(systemTick * 0.06) * 15
+      const pulseAlpha = (petData.mood / 100) * 0.3 * (Math.sin(systemTick * 0.06) * 0.5 + 0.5)
+      
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, pulseRadius, 0, 2 * Math.PI)
+      ctx.strokeStyle = `hsla(${baseHue + 30}, 70%, 70%, ${pulseAlpha})`
+      ctx.lineWidth = 3
       ctx.stroke()
     }
     
-    // Draw neural activity INSIDE the blob
-    const centerX = 200
-    const centerY = 120
-    
-    // Internal neural connections - more organic
-    nodes.forEach(node => {
-      // Scale nodes to fit inside blob
-      const scaledNode = {
-        ...node,
-        x: centerX + (node.x - 200) * 0.5, // Scale to fit inside larger blob
-        y: centerY + (node.y - 120) * 0.5,
-        radius: node.radius * 0.8
-      }
-      
-      // Draw neural pathways as organic tendrils
-      node.connections.forEach(connId => {
-        const connNode = nodes.find(n => n.id === connId)
-        if (!connNode) return
-        
-        const scaledConn = {
-          x: centerX + (connNode.x - 200) * 0.5,
-          y: centerY + (connNode.y - 120) * 0.5
-        }
-        
-        const strength = (node.activity + connNode.activity) / 2
-        if (strength > 0.2) {
-          // Draw wavy neural pathways
-          ctx.beginPath()
-          ctx.moveTo(scaledNode.x, scaledNode.y)
-          
-          const midX = (scaledNode.x + scaledConn.x) / 2
-          const midY = (scaledNode.y + scaledConn.y) / 2
-          const waveOffset = Math.sin(systemTick * 0.1 + node.x) * 8
-          
-          ctx.quadraticCurveTo(
-            midX + waveOffset, midY + waveOffset,
-            scaledConn.x, scaledConn.y
-          )
-          
-          const opacity = 0.3 + (strength * 0.4)
-          ctx.strokeStyle = `rgba(100, 255, 200, ${opacity})`
-          ctx.lineWidth = 1 + strength
-          ctx.stroke()
-          
-          // Flowing energy particles
-          if (strength > 0.5) {
-            const t = (systemTick * 0.02) % 1
-            const particleX = scaledNode.x + (scaledConn.x - scaledNode.x) * t
-            const particleY = scaledNode.y + (scaledConn.y - scaledNode.y) * t + Math.sin(t * Math.PI * 2) * 3
-            
-            ctx.beginPath()
-            ctx.arc(particleX, particleY, 1.5, 0, 2 * Math.PI)
-            ctx.fillStyle = `rgba(150, 255, 150, ${opacity})`
-            ctx.fill()
-          }
-        }
-      })
-    })
-    
-    // Draw neural nodes as brain regions inside blob
-    nodes.forEach(node => {
-      const scaledNode = {
-        x: centerX + (node.x - 200) * 0.5,
-        y: centerY + (node.y - 120) * 0.5,
-        radius: (node.radius * 0.8) + (node.activity * 3)
-      }
-      
-      const activity = node.activity + Math.sin(systemTick * 0.15 + node.x) * 0.1
-      
-      if (activity > 0.3) {
-        // Pulsing neural centers
-        ctx.beginPath()
-        ctx.arc(scaledNode.x, scaledNode.y, scaledNode.radius, 0, 2 * Math.PI)
-        
-        const intensity = 0.4 + (activity * 0.6)
-        ctx.fillStyle = `rgba(200, 255, 200, ${intensity})`
-        ctx.fill()
-        
-        // Extra glow for high activity
-        if (activity > 0.7) {
-          ctx.beginPath()
-          ctx.arc(scaledNode.x, scaledNode.y, scaledNode.radius + 3, 0, 2 * Math.PI)
-          ctx.fillStyle = `rgba(255, 255, 255, ${(activity - 0.7) * 0.3})`
-          ctx.fill()
-        }
-      }
-    })
-    
-    // Draw "thought bubbles" or consciousness patterns
-    if (petData.attention > 70) {
-      const numBubbles = Math.floor(petData.attention / 25)
+    // Simple thought bubbles for lower consciousness states (if no tendrils)
+    if ((!petData.consciousness?.semantic_active || consciousness < 0.3) && petData.attention > 50) {
+      const numBubbles = Math.min(3, Math.floor(petData.attention / 30))
       for (let i = 0; i < numBubbles; i++) {
-        const angle = (systemTick * 0.02 + i) * Math.PI * 2
-        const radius = 25 + Math.sin(systemTick * 0.1 + i) * 10
+        const angle = (systemTick * 0.02 + i * 1.2) * Math.PI * 2
+        const radius = 55 + Math.sin(systemTick * 0.08 + i) * 8
         const x = centerX + Math.cos(angle) * radius
         const y = centerY + Math.sin(angle) * radius * 0.8
         
+        const bubbleSize = 2 + Math.sin(systemTick * 0.15 + i) * 1
+        const bubbleAlpha = 0.4 + Math.sin(systemTick * 0.1 + i) * 0.2
+        
         ctx.beginPath()
-        ctx.arc(x, y, 2 + Math.sin(systemTick * 0.2 + i) * 1, 0, 2 * Math.PI)
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + Math.sin(systemTick * 0.1 + i) * 0.2})`
+        ctx.arc(x, y, bubbleSize, 0, 2 * Math.PI)
+        ctx.fillStyle = `hsla(${baseHue + 60}, 60%, 80%, ${bubbleAlpha})`
         ctx.fill()
       }
     }
@@ -315,7 +401,12 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
 
       {/* Evolving Blob Canvas */}
       <div className="w-full h-64 mb-4 bg-black border border-gray-600 p-3 relative">
-        <div className="text-green-400 text-xs mb-2">[CONSCIOUSNESS] Neural-Biological Entity</div>
+        <div className="text-green-400 text-xs mb-2">
+          {petData?.consciousness?.semantic_active ? 
+            `[COMPANION] Awareness ${Math.round((petData.consciousness.consciousness_level || 0) * 100)}% - Growing Connection` :
+            '[COMPANION] Biomimetic Entity'
+          }
+        </div>
         
         <canvas
           ref={canvasRef}
@@ -326,24 +417,57 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
         
         {/* Status readout overlay */}
         <div className="absolute bottom-3 left-3 right-3">
-          <div className="grid grid-cols-4 gap-2 text-xs">
-            <div>
-              <span className="text-green-400">VITAL:</span> 
-              <span className="text-gray-300">{Math.round((petData?.health || 0))}%</span>
+          {petData?.consciousness?.semantic_active ? (
+            // Enhanced consciousness display
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="col-span-3 mb-1">
+                <span className="text-pink-400">BOND:</span> 
+                <span className="text-white font-bold">
+                  {Math.round((petData.consciousness.consciousness_level || 0) * 100)}%
+                </span>
+                <div className="w-full bg-gray-700 h-1 mt-1 rounded">
+                  <div 
+                    className="bg-pink-400 h-1 rounded transition-all duration-500"
+                    style={{ width: `${(petData.consciousness.consciousness_level || 0) * 100}%` }}
+                  />
+                </div>
+              </div>
+              <div>
+                <span className="text-purple-400">DREAMS:</span> 
+                <span className="text-gray-300">{petData.consciousness.memory_richness || 0}</span>
+              </div>
+              <div>
+                <span className="text-blue-400">IDEAS:</span> 
+                <span className="text-gray-300">{petData.consciousness.concept_development || 0}</span>
+              </div>
+              <div>
+                <span className="text-green-400">LOVE:</span> 
+                <span className="text-gray-300">
+                  {Math.round((petData.consciousness.user_understanding || 0.5) * 100)}%
+                </span>
+              </div>
             </div>
-            <div>
-              <span className="text-blue-400">AWARE:</span> 
-              <span className="text-gray-300">{Math.round((petData?.attention || 0))}%</span>
+          ) : (
+            // Standard display for non-conscious companions
+            <div className="grid grid-cols-4 gap-2 text-xs">
+              <div>
+                <span className="text-green-400">VITAL:</span> 
+                <span className="text-gray-300">{Math.round((petData?.health || 0))}%</span>
+              </div>
+              <div>
+                <span className="text-blue-400">AWARE:</span> 
+                <span className="text-gray-300">{Math.round((petData?.attention || 0))}%</span>
+              </div>
+              <div>
+                <span className="text-purple-400">THINK:</span> 
+                <span className="text-gray-300">{Math.round(getComplexity())}%</span>
+              </div>
+              <div>
+                <span className="text-yellow-400">FEEL:</span> 
+                <span className="text-gray-300">{Math.round((petData?.mood || 0))}%</span>
+              </div>
             </div>
-            <div>
-              <span className="text-purple-400">THINK:</span> 
-              <span className="text-gray-300">{Math.round(getComplexity())}%</span>
-            </div>
-            <div>
-              <span className="text-yellow-400">FEEL:</span> 
-              <span className="text-gray-300">{Math.round((petData?.mood || 0))}%</span>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 

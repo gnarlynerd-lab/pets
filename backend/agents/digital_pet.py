@@ -15,6 +15,7 @@ from backend.agents.fluid_boundary import PetEnergySystem
 from backend.agents.pet_environment import ObservableCognitiveDevelopment
 from backend.agents.fep_cognitive_system import FEPCognitiveSystem
 from backend.agents.enhanced_fep_system import EnhancedFEPCognitiveSystem
+from backend.agents.semantic_inference_system import SemanticInferenceSystem
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +111,9 @@ class DigitalPet(Agent):
         
         # Enhanced Free Energy Principle cognitive system - NEW
         self.fep_system = EnhancedFEPCognitiveSystem(state_size=20, action_size=12)
+        
+        # Semantic consciousness system - integrates LLM with active inference
+        self.semantic_system = SemanticInferenceSystem(self.fep_system)
         
         # Current region in environment - NEW
         self.current_region_id = "central"  # Default starting region
@@ -1928,6 +1932,43 @@ class DigitalPet(Agent):
         
         return stats
     
+    def get_consciousness_info(self) -> Dict[str, Any]:
+        """Get consciousness and semantic understanding information."""
+        try:
+            consciousness_level = self.semantic_system._calculate_consciousness_level()
+            memory_count = len(self.semantic_system.semantic_memories)
+            concept_count = len(self.semantic_system.memory_clusters)
+            user_understanding = self.semantic_system.user_model.get("trust_level", 0.5)
+            
+            # Get recent semantic activities
+            recent_memories = list(self.semantic_system.semantic_memories.values())[-5:]
+            recent_concepts = list(self.semantic_system.memory_clusters.keys())[-10:]
+            
+            return {
+                'consciousness_level': consciousness_level,
+                'memory_richness': memory_count,
+                'concept_development': concept_count,
+                'user_understanding': user_understanding,
+                'attention_level': self.fep_system.attention_level / 100,
+                'recent_concepts': recent_concepts,
+                'semantic_active': True,
+                'user_model_summary': {
+                    'trust_level': self.semantic_system.user_model.get("trust_level", 0.5),
+                    'communication_style': self.semantic_system.user_model.get("communication_style", "unknown"),
+                    'relationship_depth': len(self.semantic_system.user_model.get("relationship_history", []))
+                }
+            }
+        except Exception as e:
+            logger.warning(f"Could not get consciousness info: {e}")
+            return {
+                'consciousness_level': 0.5,
+                'memory_richness': 0,
+                'concept_development': 0,
+                'user_understanding': 0.5,
+                'attention_level': self.fep_system.attention_level / 100,
+                'semantic_active': False
+            }
+    
     def interact_with_emoji(self, emoji_sequence: str, user_context: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Process emoji interaction with the pet and return the pet's response.
@@ -1980,6 +2021,46 @@ class DigitalPet(Agent):
         if 'timestamp' not in fep_result:
             fep_result['timestamp'] = time.time()
         
+        # Process through semantic consciousness system for deeper understanding
+        semantic_result = None
+        try:
+            # Integrate semantic understanding with numerical FEP
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            semantic_context = {
+                'pet_state': self.get_state(),
+                'fep_result': fep_result,
+                'user_context': user_context,
+                'mood': self.mood / 100.0,
+                'energy': self.energy / 100.0,
+                'health': self.health / 100.0,
+                'development_stage': self.development_stage,
+                'attention_level': self.fep_system.attention_level
+            }
+            
+            semantic_result = loop.run_until_complete(
+                self.semantic_system.process_interaction(emoji_sequence, semantic_context)
+            )
+            
+            # Enhance FEP result with semantic insights
+            if semantic_result:
+                fep_result['semantic_understanding'] = semantic_result['semantic_state']
+                fep_result['consciousness_level'] = semantic_result['consciousness_level']
+                fep_result['memory_id'] = semantic_result['memory_id']
+                
+                # Use semantic response if available
+                if 'response' in semantic_result:
+                    fep_result['emoji_response'] = semantic_result['response']
+            
+            loop.close()
+            
+        except Exception as e:
+            logger.warning(f"Semantic processing failed: {e}")
+            # Fallback to numerical FEP only
+            pass
+        
         # Personalize response based on user modeling
         personalized_response = self._personalize_emoji_response(
             fep_result['emoji_response'], 
@@ -1993,7 +2074,7 @@ class DigitalPet(Agent):
         # Update last interaction time
         self.last_interaction_time = time.time()
         
-        # Store interaction in memory with user modeling data
+        # Store interaction in memory with user modeling and semantic data
         interaction_memory = {
             'type': 'emoji_interaction',
             'user_id': user_id,
@@ -2003,7 +2084,10 @@ class DigitalPet(Agent):
             'surprise_level': fep_result['surprise_level'],
             'timestamp': fep_result['timestamp'],
             'context': user_context,
-            'user_insights': user_insights
+            'user_insights': user_insights,
+            'semantic_understanding': fep_result.get('semantic_understanding'),
+            'consciousness_level': fep_result.get('consciousness_level'),
+            'semantic_memory_id': fep_result.get('memory_id')
         }
         self.episodic_memory.append(interaction_memory)
         

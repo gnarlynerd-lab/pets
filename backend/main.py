@@ -510,6 +510,9 @@ async def get_anonymous_pet(session_id: str):
     if not pet:
         raise HTTPException(status_code=404, detail=f"No pet found for session {session_id}")
     
+    # Get consciousness information from semantic system
+    consciousness_info = pet.get_consciousness_info()
+    
     return {
         "id": pet.unique_id,
         "name": pet.name if hasattr(pet, 'name') else f"Pet_{pet.unique_id[:8]}",
@@ -525,7 +528,8 @@ async def get_anonymous_pet(session_id: str):
         "behavior_patterns": pet.behavior_patterns,
         "position": pet.pos,
         "current_emoji_message": getattr(pet, 'current_emoji_message', None),
-        "personality_summary": getattr(pet, 'personality_summary', None)
+        "personality_summary": getattr(pet, 'personality_summary', None),
+        "consciousness": consciousness_info
     }
 
 
@@ -905,6 +909,10 @@ async def get_pet(pet_id: str):
             "developmental_stage": pet.cognitive_system.developmental_stage,
             "recent_developments": pet.cognitive_system.recent_developments[-5:]
         }
+    
+    # Get consciousness information from semantic system
+    consciousness_info = pet.get_consciousness_info()
+    pet_data["consciousness"] = consciousness_info
     
     return pet_data
 
