@@ -90,7 +90,7 @@ class PetInteraction(Base):
     __tablename__ = "pet_interactions"
     
     interaction_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String(36), nullable=True)
+    user_id = Column(String(60), nullable=True)  # Increased to support session IDs
     pet_id = Column(String(36), ForeignKey("pet_states.pet_id", ondelete="CASCADE"), nullable=False)
     interaction_type = Column(String(50), nullable=False)
     content = Column(JSON, nullable=False)

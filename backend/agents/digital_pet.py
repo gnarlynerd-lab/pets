@@ -2026,8 +2026,6 @@ class DigitalPet(Agent):
         try:
             # Integrate semantic understanding with numerical FEP
             import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
             
             semantic_context = {
                 'pet_state': self.get_state(),
@@ -2040,9 +2038,21 @@ class DigitalPet(Agent):
                 'attention_level': self.fep_system.attention_level
             }
             
-            semantic_result = loop.run_until_complete(
-                self.semantic_system.process_interaction(emoji_sequence, semantic_context)
-            )
+            # Try to get the current event loop, if not create one with asyncio.run
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an async context, create a task
+                task = loop.create_task(
+                    self.semantic_system.process_interaction(emoji_sequence, semantic_context)
+                )
+                # For now, skip semantic processing in async context to avoid blocking
+                logger.debug("Skipping semantic processing in async context")
+                semantic_result = None
+            except RuntimeError:
+                # No event loop running, we can use asyncio.run
+                semantic_result = asyncio.run(
+                    self.semantic_system.process_interaction(emoji_sequence, semantic_context)
+                )
             
             # Enhance FEP result with semantic insights
             if semantic_result:
@@ -2053,8 +2063,6 @@ class DigitalPet(Agent):
                 # Use semantic response if available
                 if 'response' in semantic_result:
                     fep_result['emoji_response'] = semantic_result['response']
-            
-            loop.close()
             
         except Exception as e:
             logger.warning(f"Semantic processing failed: {e}")
