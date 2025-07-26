@@ -35,7 +35,7 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379
       - MYSQL_HOST=mysql
-      - MYSQL_DATABASE=dks_hospital
+      - MYSQL_DATABASE=dks_petworld
       - MYSQL_USER=dks_user
       - MYSQL_PASSWORD=dks_password
     depends_on:

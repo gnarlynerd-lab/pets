@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ConsciousnessEvolution from './consciousness-evolution'
 import MemoryVisualization from './memory-visualization'
 import PersonalityDevelopment from './personality-development'
@@ -43,10 +43,38 @@ interface PersonalityTrait {
 interface ConsciousnessDashboardProps {
   petData: any
   memories?: Memory[]
+  fetchMemories?: () => Promise<Memory[]>
 }
 
-export default function ConsciousnessDashboard({ petData, memories = [] }: ConsciousnessDashboardProps) {
+export default function ConsciousnessDashboard({ petData, memories = [], fetchMemories }: ConsciousnessDashboardProps) {
   const [activeView, setActiveView] = useState<'evolution' | 'memory' | 'personality'>('evolution')
+  const [realMemories, setRealMemories] = useState<Memory[]>(memories)
+
+  // Fetch real memories when component mounts or when switching to memory view
+  useEffect(() => {
+    if (fetchMemories && petData?.id && (activeView === 'memory' || realMemories.length === 0)) {
+      fetchMemories().then(setRealMemories).catch(console.error)
+    }
+  }, [fetchMemories, activeView, realMemories.length, petData?.id])
+
+  // Real-time updates - poll for new memories and consciousness changes
+  useEffect(() => {
+    if (!petData?.consciousness?.semantic_active || !fetchMemories || !petData?.id) return
+
+    const interval = setInterval(async () => {
+      // Update memories for memory visualization
+      if (activeView === 'memory') {
+        try {
+          const newMemories = await fetchMemories()
+          setRealMemories(newMemories)
+        } catch (error) {
+          console.error('Failed to update memories:', error)
+        }
+      }
+    }, 5000) // Update every 5 seconds
+
+    return () => clearInterval(interval)
+  }, [fetchMemories, activeView, petData?.consciousness?.semantic_active, petData?.id])
 
   // Transform pet data into visualization formats
   const getConsciousnessData = (): ConsciousnessData | null => {
@@ -169,7 +197,7 @@ export default function ConsciousnessDashboard({ petData, memories = [] }: Consc
 
   const consciousnessData = getConsciousnessData()
   const personalityNetwork = getPersonalityNetwork()
-  const memoryData = getSampleMemories()
+  const memoryData = realMemories.length > 0 ? realMemories : getSampleMemories()
 
   return (
     <div className="bg-gray-800 border border-gray-700 p-4 font-mono space-y-4">

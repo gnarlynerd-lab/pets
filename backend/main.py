@@ -1528,5 +1528,107 @@ async def get_relationship_insights(pet_id: str, user_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to get relationship insights: {str(e)}")
 
 
+# Memory endpoints for consciousness visualizations
+@app.get("/api/pets/{pet_id}/memories")
+async def get_pet_memories(pet_id: str, limit: int = 20):
+    """Get semantic memories for consciousness visualization"""
+    if not pet_model:
+        raise HTTPException(status_code=500, detail="Model not initialized")
+    
+    pet = pet_model.get_pet_by_id(pet_id)
+    if not pet:
+        raise HTTPException(status_code=404, detail=f"Pet {pet_id} not found")
+    
+    try:
+        memories = []
+        if hasattr(pet, 'semantic_system') and pet.semantic_system:
+            raw_memories = pet.semantic_system._get_recent_semantic_memories(limit=limit)
+            
+            for i, mem_data in enumerate(raw_memories):
+                memory = {
+                    'id': f"mem_{i}_{int(time.time())}",
+                    'timestamp': mem_data.get('timestamp', time.time() * 1000),
+                    'interaction_type': mem_data.get('type', 'unknown'),
+                    'content': mem_data.get('content', ''),
+                    'semantic_tags': mem_data.get('semantic_tags', []),
+                    'emotional_context': {
+                        'valence': mem_data.get('emotional_context', {}).get('valence', 0),
+                        'arousal': mem_data.get('emotional_context', {}).get('arousal', 0),
+                        'dominance': mem_data.get('emotional_context', {}).get('dominance', 0)
+                    },
+                    'significance': mem_data.get('significance_score', 0.5),
+                    'associations': mem_data.get('associations', []),
+                    'cluster_id': mem_data.get('cluster_id')
+                }
+                memories.append(memory)
+        
+        return {
+            'pet_id': pet_id,
+            'memories': memories,
+            'total_count': len(memories),
+            'timestamp': time.time()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting memories for pet {pet_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get memories: {str(e)}")
+
+
+@app.get("/api/anonymous/pets/{session_id}/memories")
+async def get_anonymous_pet_memories(session_id: str, limit: int = 20):
+    """Get semantic memories for anonymous pets"""
+    try:
+        if not pet_model:
+            raise HTTPException(status_code=500, detail="Model not initialized")
+        
+        # Find pet by session_id
+        pet = None
+        for agent in pet_model.schedule.agents:
+            if hasattr(agent, 'session_id') and agent.session_id == session_id:
+                pet = agent
+                break
+        
+        if not pet:
+            return {
+                'session_id': session_id,
+                'memories': [],
+                'total_count': 0,
+                'timestamp': time.time()
+            }
+        
+        memories = []
+        if hasattr(pet, 'semantic_system') and pet.semantic_system:
+            raw_memories = pet.semantic_system._get_recent_semantic_memories(limit=limit)
+            
+            for i, mem_data in enumerate(raw_memories):
+                memory = {
+                    'id': f"anon_mem_{i}_{int(time.time())}",
+                    'timestamp': mem_data.get('timestamp', time.time() * 1000),
+                    'interaction_type': mem_data.get('type', 'unknown'),
+                    'content': mem_data.get('content', ''),
+                    'semantic_tags': mem_data.get('semantic_tags', []),
+                    'emotional_context': {
+                        'valence': mem_data.get('emotional_context', {}).get('valence', 0),
+                        'arousal': mem_data.get('emotional_context', {}).get('arousal', 0),
+                        'dominance': mem_data.get('emotional_context', {}).get('dominance', 0)
+                    },
+                    'significance': mem_data.get('significance_score', 0.5),
+                    'associations': mem_data.get('associations', []),
+                    'cluster_id': mem_data.get('cluster_id')
+                }
+                memories.append(memory)
+        
+        return {
+            'session_id': session_id,
+            'memories': memories,
+            'total_count': len(memories),
+            'timestamp': time.time()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting memories for anonymous pet {session_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get memories: {str(e)}")
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

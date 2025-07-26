@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef } from 'react'
-import rough from 'roughjs/bundled/rough.esm'
+// @ts-ignore - RoughJS types not needed for this implementation
 
 interface PetData {
   id: string

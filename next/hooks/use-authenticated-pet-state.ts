@@ -403,6 +403,42 @@ export function useAuthenticatedPetState() {
     }
   }, [user, token, sessionId, isClient, refreshPetState])
 
+  // Fetch memories for consciousness visualization
+  const fetchMemories = useCallback(async () => {
+    try {
+      let response: Response
+      
+      if (user && token && availablePetId) {
+        // Authenticated user
+        response = await fetch(`${API_BASE_URL}/api/pets/${availablePetId}/memories`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+      } else if (sessionId) {
+        // Anonymous user
+        response = await fetch(`${API_BASE_URL}/api/anonymous/pets/${sessionId}/memories`)
+      } else {
+        return []
+      }
+      
+      if (response.ok) {
+        const data = await response.json()
+        return data.memories || []
+      } else if (response.status === 404) {
+        // Pet/session doesn't exist yet - this is normal for new sessions
+        return []
+      } else {
+        console.error('Failed to fetch memories:', response.status)
+        return []
+      }
+    } catch (error) {
+      console.error('Error fetching memories:', error)
+      return []
+    }
+  }, [user, token, availablePetId, sessionId])
+
   return {
     petData,
     isLoading,
@@ -416,5 +452,6 @@ export function useAuthenticatedPetState() {
     isAuthenticated: !!user,
     sessionId,
     migrateAnonymousData,
+    fetchMemories,
   }
 }

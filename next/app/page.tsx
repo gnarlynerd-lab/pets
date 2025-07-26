@@ -29,7 +29,8 @@ export default function Home() {
     userPets,
     isAuthenticated,
     sessionId,
-    migrateAnonymousData
+    migrateAnonymousData,
+    fetchMemories
   } = useAuthenticatedPetState()
 
   const [isEditingName, setIsEditingName] = useState(false)
@@ -247,6 +248,7 @@ export default function Home() {
                 <ConsciousnessDashboard 
                   petData={petData}
                   memories={[]}
+                  fetchMemories={fetchMemories}
                 />
               )}
               

@@ -15,17 +15,29 @@ MYSQL_USER = os.getenv("MYSQL_USER", "dks_user")
 MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "dks_password")
 MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", "dks_petworld")
 
-# Create database URL
-DATABASE_URL = f"mysql+mysqlconnector://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}"
+# Use SQLite for development if MySQL is not available
+USE_SQLITE = os.getenv("USE_SQLITE", "false").lower() == "true"
+
+if USE_SQLITE:
+    DATABASE_URL = "sqlite:///dks_development.db"
+else:
+    DATABASE_URL = f"mysql+mysqlconnector://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}"
 
 # Create engine
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,  # Verify connections before using
-    pool_size=10,
-    max_overflow=20,
-    echo=False  # Set to True for SQL query logging
-)
+if USE_SQLITE:
+    engine = create_engine(
+        DATABASE_URL,
+        echo=False,  # Set to True for SQL query logging
+        connect_args={"check_same_thread": False}  # SQLite specific
+    )
+else:
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,  # Verify connections before using
+        pool_size=10,
+        max_overflow=20,
+        echo=False  # Set to True for SQL query logging
+    )
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
