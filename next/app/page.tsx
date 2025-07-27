@@ -1,19 +1,14 @@
 "use client"
 
 import { useState, useEffect, useRef } from 'react'
-import BlobPetDisplay from '@/components/blob-pet-display'
-import EmojiInteraction from '@/components/emoji-interaction'
-import UserInsightsPanel from '@/components/user-insights-panel'
-import ConsciousnessDashboard from '@/components/consciousness-dashboard'
+import { useAuthenticatedPetState } from '@/hooks/use-authenticated-pet-state'
 import { AuthDialog } from '@/components/auth/auth-dialog'
 import { UserMenu } from '@/components/auth/user-menu'
 import { SaveCompanionBanner } from '@/components/save-companion-banner'
-import { SessionInfo } from '@/components/session-info'
 import { ClientOnly } from '@/components/client-only'
-import { EnvironmentStatus } from '@/components/environment-status'
-import { CompanionAutonomy } from '@/components/companion-autonomy'
-import { useAuthenticatedPetState } from '@/hooks/use-authenticated-pet-state'
 import { useAuth } from '@/contexts/auth-context'
+import BlobPetDisplay from '@/components/blob-pet-display'
+import EmojiPicker from 'emoji-picker-react'
 
 export default function Home() {
   const { user } = useAuth()
@@ -25,66 +20,78 @@ export default function Home() {
     interactionHistory,
     petName,
     updatePetName,
-    refreshPetState,
-    userPets,
     isAuthenticated,
     sessionId,
-    migrateAnonymousData,
-    fetchMemories
+    migrateAnonymousData
   } = useAuthenticatedPetState()
 
+  const [currentEmoji, setCurrentEmoji] = useState('')
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [isEditingName, setIsEditingName] = useState(false)
   const [tempPetName, setTempPetName] = useState(petName || '')
-  const [userInsights, setUserInsights] = useState<any>(null)
-  const [showUserInsights, setShowUserInsights] = useState(false)
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
   const [migrationStatus, setMigrationStatus] = useState<{ 
     isComplete: boolean
     message?: string 
   }>({ isComplete: false })
+  
+  const chatContainerRef = useRef<HTMLDivElement>(null)
+  const emojiPickerRef = useRef<HTMLDivElement>(null)
 
   // Update tempPetName when petName changes
   useEffect(() => {
     setTempPetName(petName || '')
   }, [petName])
 
-  // Auto-migrate anonymous data when user authenticates
-  useEffect(() => {
-    if (isAuthenticated && sessionId && !migrationStatus.isComplete) {
-      const performMigration = async () => {
-        console.log('Attempting to migrate anonymous data...', { sessionId })
-        const result = await migrateAnonymousData()
-        
-        if (result.success) {
-          setMigrationStatus({ 
-            isComplete: true, 
-            message: `Successfully saved your companion! ${result.interactionsMigrated} interactions migrated.` 
-          })
-          console.log('Migration successful:', result)
-        } else {
-          console.error('Migration failed:', result.error)
-          setMigrationStatus({ 
-            isComplete: true, 
-            message: `Failed to migrate data: ${result.error}` 
-          })
-        }
-      }
-      
-      performMigration()
-    }
-  }, [isAuthenticated, sessionId, migrationStatus.isComplete, migrateAnonymousData])
-  const chatEndRef = useRef<HTMLDivElement>(null)
-  const chatContainerRef = useRef<HTMLDivElement>(null)
-
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    // Use setTimeout to ensure DOM is updated before scrolling
     setTimeout(() => {
       if (chatContainerRef.current) {
         chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
       }
     }, 100)
   }, [interactionHistory])
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Auto-migrate anonymous data when user authenticates
+  useEffect(() => {
+    if (isAuthenticated && sessionId && !migrationStatus.isComplete) {
+      const performMigration = async () => {
+        const result = await migrateAnonymousData()
+        if (result.success) {
+          setMigrationStatus({ 
+            isComplete: true, 
+            message: `Successfully saved your companion! ${result.interactionsMigrated} interactions migrated.` 
+          })
+        }
+      }
+      performMigration()
+    }
+  }, [isAuthenticated, sessionId, migrationStatus.isComplete, migrateAnonymousData])
+
+  const handleEmojiSend = () => {
+    if (currentEmoji.trim()) {
+      sendEmojiInteraction(currentEmoji.trim())
+      setCurrentEmoji('')
+    }
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleEmojiSend()
+    }
+  }
 
   const handleNameSave = () => {
     if (tempPetName.trim()) {
@@ -98,31 +105,55 @@ export default function Home() {
     setIsEditingName(false)
   }
 
-  // Enhanced emoji interaction handler to capture user insights
-  const handleEmojiInteraction = async (emojiSequence: string) => {
-    const result = await sendEmojiInteraction(emojiSequence)
-    if (result && result.user_insights) {
-      setUserInsights(result.user_insights)
-      setShowUserInsights(true)
-    }
+  const onEmojiClick = (emojiObject: any) => {
+    setCurrentEmoji(prev => prev + emojiObject.emoji)
   }
 
+  const quickEmojis = ['👋', '❤️', '😊', '🤔', '👍', '😴', '🍎', '🎮']
+  const companionName = petName || 'Companion'
+
   return (
-    <main className="min-h-screen bg-gray-900 text-gray-100 font-mono">
-      <div className="container mx-auto px-4 py-4">
+    <div className="min-h-screen bg-white text-black font-mono">
+      <div className="max-w-4xl mx-auto p-8">
+        
         {/* Header with Auth */}
-        <div className="flex justify-between items-start mb-8">
-          <div className="text-center flex-1">
-            <h1 className="text-2xl md:text-3xl font-bold text-green-400 mb-2">
-              DKS://Digital_Kinetic_Systems v0.1.0
-            </h1>
-            <p className="text-gray-500 text-sm">
-              [SYSTEM] Initializing companion development environment...
-            </p>
-          </div>
-          
-          {/* User Menu */}
-          <div className="flex-shrink-0 ml-4">
+        <div className="border-b border-black pb-4 mb-8">
+          <div className="flex justify-between items-center">
+            <div>
+              {isEditingName ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={tempPetName}
+                    onChange={(e) => setTempPetName(e.target.value)}
+                    className="text-2xl font-bold tracking-tight px-2 py-1 border border-black focus:outline-none"
+                    placeholder="Companion name..."
+                    maxLength={20}
+                  />
+                  <button
+                    onClick={handleNameSave}
+                    className="px-3 py-1 bg-black text-white text-sm hover:bg-gray-800"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={handleNameCancel}
+                    className="px-3 py-1 border border-black text-sm hover:bg-gray-100"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <h1 
+                  className="text-2xl font-bold tracking-tight cursor-pointer hover:text-gray-600"
+                  onClick={() => setIsEditingName(true)}
+                >
+                  {companionName}
+                </h1>
+              )}
+            </div>
+            
+            {/* User Menu */}
             <UserMenu onOpenAuth={() => setAuthDialogOpen(true)} />
           </div>
         </div>
@@ -133,12 +164,19 @@ export default function Home() {
           onOpenChange={setAuthDialogOpen}
         />
 
-        {/* Main content */}
-        <div className="max-w-7xl mx-auto">
-          {/* Three Column Layout: Pet, Chat, and Insights */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Pet Display Area */}
-            <div className="flex justify-center">
+        {/* Main Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+          
+          {/* Left: Companion Display */}
+          <div className="space-y-6">
+            {/* Companion Visual with Blob */}
+            <div className="border border-black h-64 overflow-hidden relative bg-black">
+              {/* Companion Name */}
+              <div className="absolute top-4 left-4 z-10">
+                <div className="text-white font-bold text-sm">
+                  {companionName}
+                </div>
+              </div>
               <BlobPetDisplay 
                 petData={petData}
                 petResponse={petResponse}
@@ -147,179 +185,130 @@ export default function Home() {
               />
             </div>
 
-            {/* Chat and Interaction Area */}
-            <div className="space-y-6">
-              {/* Chat History */}
-              <div className="bg-gray-800 border border-gray-700 p-4 shadow-lg">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-sm font-bold text-green-400 mb-1">[TERMINAL] Companion I/O Stream</h3>
-              
-              {/* Pet Name Editor */}
-              <div className="flex items-center gap-2">
-                {isEditingName ? (
-                  <>
-                    <input
-                      type="text"
-                      value={tempPetName}
-                      onChange={(e) => setTempPetName(e.target.value)}
-                      className="text-sm px-3 py-2 bg-gray-800 border border-gray-600 text-green-400 font-mono focus:outline-none focus:ring-1 focus:ring-green-400 focus:border-green-400"
-                      placeholder="Companion name..."
-                      maxLength={20}
-                    />
-                    <button
-                      onClick={handleNameSave}
-                      className="bg-green-600 hover:bg-green-500 text-black text-sm px-4 py-2 font-bold transition-all duration-200 border border-green-400"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={handleNameCancel}
-                      className="bg-gray-700 border border-gray-600 hover:bg-gray-600 text-gray-300 text-sm px-4 py-2 font-medium transition-all duration-200"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => setIsEditingName(true)}
-                    className="text-green-400 hover:text-green-300 hover:bg-gray-800 text-sm px-3 py-2 font-mono transition-all duration-200 border border-transparent hover:border-gray-700"
-                  >
-                    {petName ? `Companion: ${petName}` : 'Meet Companion'}
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            <div 
-              ref={chatContainerRef}
-              className="bg-black border border-gray-700 p-4 h-96 overflow-y-auto space-y-2 font-mono text-sm scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800"
-            >
-              {interactionHistory.length === 0 ? (
-                <div className="text-gray-500 text-xs">
-                  <div>[SYSTEM] Companion process initialized</div>
-                  <div>[SYSTEM] Awaiting user input...</div>
-                  <div className="mt-2 text-green-400">$ </div>
+            {/* Status */}
+            <div className="border border-black p-4 space-y-2 text-sm">
+              {/* Last Response */}
+              {petResponse && (
+                <div className="mb-4 pb-4 border-b border-gray-300">
+                  <div className="text-lg mb-1">{petResponse}</div>
+                  <div className="text-xs text-gray-600">
+                    {isLoading ? 'Thinking...' : 'Last response'}
+                  </div>
                 </div>
-              ) : (
-                <>
-                  {interactionHistory.slice(-20).map((interaction, index) => (
-                    <div key={`${interaction.timestamp || index}-${index}`} className="space-y-2">
-                      {/* User input */}
-                      <div className="text-green-400">
-                        <span className="text-gray-500">user@dks:~$</span> send_emoji "{interaction.userEmojis}"
-                      </div>
-                      
-                      {/* Companion response */}
-                      <div className="text-gray-300 ml-4">
-                        <div className="text-yellow-400 text-xs">[{new Date().toLocaleTimeString('en-US', { hour12: false })}] COMPANION_RESPONSE:</div>
-                        <div className="ml-2">{interaction.petResponse}</div>
-                      </div>
-                    </div>
-                  ))}
-
-                </>
               )}
+              <div className="grid grid-cols-2 gap-4">
+                <div>Energy: {Math.round(petData?.energy || 0)}%</div>
+                <div>Mood: {Math.round(petData?.mood || 0)}%</div>
+                <div>Health: {Math.round(petData?.health || 0)}%</div>
+                <div>Attention: {Math.round(petData?.attention || 0)}%</div>
+              </div>
             </div>
           </div>
 
-              {/* Emoji Communication Interface */}
-              <div>
-                <EmojiInteraction 
-                  onSendEmoji={handleEmojiInteraction}
-                  isLoading={isLoading}
-                />
+          {/* Right: Communication */}
+          <div className="space-y-6">
+            
+            {/* Conversation */}
+            <div className="border border-black h-64 overflow-hidden">
+              <div className="border-b border-black p-2 text-sm font-bold">
+                Conversation
+              </div>
+              <div 
+                ref={chatContainerRef}
+                className="p-4 h-48 overflow-y-auto space-y-3 text-sm"
+              >
+                {interactionHistory.length === 0 ? (
+                  <div className="text-gray-600 italic">
+                    Start a conversation...
+                  </div>
+                ) : (
+                  interactionHistory.slice(-10).map((interaction, index) => (
+                    <div key={index} className="space-y-1">
+                      <div className="flex gap-2">
+                        <span className="font-bold">You:</span>
+                        <span>{interaction.userEmojis}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="font-bold">{companionName}:</span>
+                        <span>{interaction.petResponse}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
-            {/* User Insights Panel */}
-            <div className="space-y-6">
-              <UserInsightsPanel
-                petId={petData?.id || ''}
-                userId={user?.user_id || "frontend_user"}
-                userInsights={userInsights}
-                onRefresh={() => {
-                  // Could implement refresh logic here
-                  console.log('Refreshing user insights...')
-                }}
-              />
-              
-              {/* Consciousness Dashboard */}
-              {petData?.consciousness?.semantic_active && (
-                <ConsciousnessDashboard 
-                  petData={petData}
-                  memories={[]}
-                  fetchMemories={fetchMemories}
+            {/* Input and Controls */}
+            <div className="space-y-3">
+              {/* Input with emoji picker */}
+              <div className="border border-black relative">
+                <input
+                  type="text"
+                  value={currentEmoji}
+                  onChange={(e) => setCurrentEmoji(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Type emojis here..."
+                  className="w-full p-4 pr-12 text-lg font-mono bg-white border-none outline-none"
+                  disabled={isLoading}
                 />
-              )}
-              
-              {/* Session Status */}
-              <ClientOnly fallback={
-                <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-3 border border-gray-200">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-gray-300 rounded-full animate-pulse"></div>
-                    <div className="flex-1">
-                      <div className="w-20 h-4 bg-gray-300 rounded animate-pulse mb-1"></div>
-                      <div className="w-32 h-3 bg-gray-200 rounded animate-pulse"></div>
+                
+                {/* Emoji Picker Button */}
+                <div className="absolute right-2 top-1/2 -translate-y-1/2" ref={emojiPickerRef}>
+                  <button
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    className="w-8 h-8 bg-gray-500 hover:bg-gray-600 rounded-full flex items-center justify-center transition-colors"
+                    title="Emoji picker"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <path d="8 14s1.5 2 4 2 4-2 4-2"/>
+                      <circle cx="9" cy="9" r="1" fill="white"/>
+                      <circle cx="15" cy="9" r="1" fill="white"/>
+                    </svg>
+                  </button>
+                  {showEmojiPicker && (
+                    <div className="absolute bottom-full mb-2 right-0 z-50">
+                      <EmojiPicker
+                        onEmojiClick={onEmojiClick}
+                        height={350}
+                        width={300}
+                        searchDisabled
+                        skinTonesDisabled
+                        previewConfig={{ showPreview: false }}
+                      />
                     </div>
-                  </div>
+                  )}
                 </div>
-              }>
-                <SessionInfo
-                  isAuthenticated={isAuthenticated}
-                  sessionId={sessionId}
-                  petName={petName}
-                  interactionCount={interactionHistory.length}
-                  onSignIn={() => setAuthDialogOpen(true)}
-                />
-              </ClientOnly>
-
-              {/* Environment Intelligence */}
-              <ClientOnly fallback={
-                <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-indigo-200 shadow-lg">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-6 h-6 bg-indigo-100 rounded-full animate-pulse"></div>
-                    <div className="w-24 h-5 bg-indigo-100 rounded animate-pulse"></div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="w-full h-3 bg-indigo-50 rounded animate-pulse"></div>
-                    <div className="w-3/4 h-3 bg-indigo-50 rounded animate-pulse"></div>
-                  </div>
-                </div>
-              }>
-                <EnvironmentStatus
-                  companionCount={petData ? 1 : 0}
-                  activeConnections={interactionHistory.length > 0 ? 1 : 0}
-                />
-              </ClientOnly>
-
-              {/* Companion Autonomy */}
-              <ClientOnly fallback={
-                <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-emerald-200 shadow-lg">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-6 h-6 bg-emerald-100 rounded-full animate-pulse"></div>
-                    <div className="w-32 h-5 bg-emerald-100 rounded animate-pulse"></div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="w-full h-3 bg-emerald-50 rounded animate-pulse"></div>
-                    <div className="w-2/3 h-3 bg-emerald-50 rounded animate-pulse"></div>
-                  </div>
-                </div>
-              }>
-                <CompanionAutonomy
-                  petData={petData}
-                  interactionCount={interactionHistory.length}
-                />
-              </ClientOnly>
-
-              {/* Peer Relationship Status */}
-              <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-amber-200/30 shadow-xl hover:shadow-2xl transition-all duration-300">
-                <h3 className="text-lg font-semibold text-amber-700 font-sans mb-3">
-                  Peer Connection
-                </h3>
-                <p className="text-sm text-amber-600 leading-relaxed">
-                  Your companion learns and grows through authentic interaction! We're building relationships together. 🤝
-                </p>
               </div>
+
+              
+              {/* Send button */}
+              <button
+                onClick={handleEmojiSend}
+                disabled={!currentEmoji.trim() || isLoading}
+                className="w-full py-3 bg-black text-white rounded-full hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg"
+              >
+                {isLoading ? 'Sending...' : 'Send'}
+              </button>
+            </div>
+
+            {/* Stats */}
+            <div className="border border-black p-4 text-xs space-y-2">
+              <div>Total interactions: {interactionHistory.length}</div>
+              <div>Session: {isAuthenticated ? 'Authenticated' : 'Anonymous'}</div>
+              <div>Connection: Active</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-gray-300 pt-8 mt-16">
+          <div className="text-left">
+            <div className="text-xs font-mono tracking-wide mb-1" style={{ color: '#006666' }}>
+              AFFINITY v0.1
+            </div>
+            <div className="text-xs text-gray-400">
+              Interactive Companion Platform
             </div>
           </div>
         </div>
@@ -340,16 +329,16 @@ export default function Home() {
       <ClientOnly>
         {migrationStatus.isComplete && migrationStatus.message && (
           <div className="fixed top-4 right-4 max-w-sm animate-slide-up">
-            <div className="bg-green-600 text-white rounded-xl p-4 shadow-xl">
+            <div className="bg-black text-white p-4 shadow-lg">
               <div className="flex items-start gap-2">
-                <div className="text-2xl">✨</div>
+                <div className="text-xl">✨</div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-sm mb-1">Migration Complete!</h3>
-                  <p className="text-xs text-green-100">{migrationStatus.message}</p>
+                  <p className="text-xs">{migrationStatus.message}</p>
                 </div>
                 <button
                   onClick={() => setMigrationStatus(prev => ({ ...prev, message: undefined }))}
-                  className="text-green-200 hover:text-white text-xl leading-none"
+                  className="text-gray-300 hover:text-white text-xl leading-none"
                 >
                   ×
                 </button>
@@ -358,6 +347,6 @@ export default function Home() {
           </div>
         )}
       </ClientOnly>
-    </main>
+    </div>
   )
 }

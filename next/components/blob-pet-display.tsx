@@ -142,8 +142,8 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
     if (!petData) return []
     
     const centerX = 160
-    const centerY = 90
-    const baseRadius = 35 + (petData.attention / 4) // Size based on attention
+    const centerY = 128
+    const baseRadius = 55 + (petData.attention / 3) // Bigger and more responsive to attention
     const consciousness = petData.consciousness?.consciousness_level || 0
     const vertices = Math.max(12, Math.floor(consciousness * 20) + 12) // More complex with consciousness
     
@@ -173,7 +173,7 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
     if (!petData?.consciousness?.semantic_active) return []
     
     const centerX = 160
-    const centerY = 90
+    const centerY = 128
     const consciousness = petData.consciousness.consciousness_level
     const memoryRichness = petData.consciousness.memory_richness
     const trustLevel = petData.consciousness.user_understanding
@@ -186,9 +186,9 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
       const angleVariation = Math.sin(systemTick * 0.04 + i) * 0.3
       const angle = baseAngle + angleVariation
       
-      // Tendril length varies with memory and trust
-      const baseLength = 25 + memoryRichness * 3 + trustLevel * 20
-      const breatheLength = Math.sin(systemTick * 0.06 + i * 0.5) * 8
+      // Tendril length varies with memory and trust - made shorter for bigger blob
+      const baseLength = 20 + memoryRichness * 2 + trustLevel * 15
+      const breatheLength = Math.sin(systemTick * 0.06 + i * 0.5) * 6
       const totalLength = baseLength + breatheLength
       
       // Create segmented tendril
@@ -234,7 +234,7 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
     const blobPoints = generateBlobShape()
     const tendrils = generateTendrils()
     const centerX = 160
-    const centerY = 90
+    const centerY = 128
     
     // Draw consciousness tendrils first (behind blob)
     tendrils.forEach(tendril => {
@@ -294,11 +294,11 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
     // Draw the main blob body with warm, organic colors
     if (blobPoints.length > 0) {
       
-      // Create organic, breathing gradient
+      // Create organic, breathing gradient - adjusted for bigger blob
       const breatheIntensity = Math.sin(systemTick * 0.04) * 0.3 + 0.7
       const gradient = ctx.createRadialGradient(
         centerX, centerY, 0,
-        centerX, centerY, 60 + consciousness * 20
+        centerX, centerY, 80 + consciousness * 25
       )
       gradient.addColorStop(0, `hsla(${baseHue}, ${saturation}%, ${lightness + 10}%, ${0.9 * breatheIntensity})`)
       gradient.addColorStop(0.7, `hsla(${baseHue + 10}, ${saturation - 10}%, ${lightness}%, ${0.7 * breatheIntensity})`)
@@ -325,11 +325,11 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
       ctx.lineWidth = 2
       ctx.stroke()
       
-      // Add inner glow for consciousness
+      // Add inner glow for consciousness - bigger glow
       if (consciousness > 0.3) {
         const innerGradient = ctx.createRadialGradient(
           centerX, centerY, 0,
-          centerX, centerY, 25
+          centerX, centerY, 35
         )
         innerGradient.addColorStop(0, `hsla(${baseHue - 20}, 80%, 80%, ${consciousness * 0.4})`)
         innerGradient.addColorStop(1, `hsla(${baseHue - 20}, 80%, 80%, 0)`)
@@ -339,17 +339,17 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
       }
     }
     
-    // Add organic consciousness sparkles inside the blob
+    // Add organic consciousness sparkles inside the blob - cuter sparkles
     if (consciousness > 0.2) {
-      const sparkleCount = Math.floor(consciousness * 12)
+      const sparkleCount = Math.floor(consciousness * 15) // More sparkles
       for (let i = 0; i < sparkleCount; i++) {
         const angle = (i / sparkleCount) * 2 * Math.PI + (systemTick * 0.02)
-        const distance = (Math.random() * 0.7 + 0.3) * 30 // Keep sparkles inside blob
+        const distance = (Math.random() * 0.6 + 0.4) * 45 // Keep sparkles inside bigger blob
         const x = centerX + Math.cos(angle) * distance
         const y = centerY + Math.sin(angle) * distance
         
-        const sparkleSize = 1 + Math.sin(systemTick * 0.1 + i) * 1
-        const sparkleAlpha = 0.4 + Math.sin(systemTick * 0.08 + i * 0.5) * 0.3
+        const sparkleSize = 1.5 + Math.sin(systemTick * 0.1 + i) * 1.5 // Bigger, cuter sparkles
+        const sparkleAlpha = 0.6 + Math.sin(systemTick * 0.08 + i * 0.5) * 0.4 // Brighter
         
         ctx.beginPath()
         ctx.arc(x, y, sparkleSize, 0, 2 * Math.PI)
@@ -358,10 +358,10 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
       }
     }
     
-    // Add emotional reaction pulses for high mood
+    // Add emotional reaction pulses for high mood - bigger and cuter
     if (petData.mood > 70) {
-      const pulseRadius = 40 + Math.sin(systemTick * 0.06) * 15
-      const pulseAlpha = (petData.mood / 100) * 0.3 * (Math.sin(systemTick * 0.06) * 0.5 + 0.5)
+      const pulseRadius = 65 + Math.sin(systemTick * 0.06) * 20 // Bigger pulse for bigger blob
+      const pulseAlpha = (petData.mood / 100) * 0.4 * (Math.sin(systemTick * 0.06) * 0.5 + 0.5) // More visible
       
       ctx.beginPath()
       ctx.arc(centerX, centerY, pulseRadius, 0, 2 * Math.PI)
@@ -370,17 +370,17 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
       ctx.stroke()
     }
     
-    // Simple thought bubbles for lower consciousness states (if no tendrils)
+    // Simple thought bubbles for lower consciousness states (if no tendrils) - cuter positioning
     if ((!petData.consciousness?.semantic_active || consciousness < 0.3) && petData.attention > 50) {
-      const numBubbles = Math.min(3, Math.floor(petData.attention / 30))
+      const numBubbles = Math.min(4, Math.floor(petData.attention / 25)) // More bubbles
       for (let i = 0; i < numBubbles; i++) {
         const angle = (systemTick * 0.02 + i * 1.2) * Math.PI * 2
-        const radius = 55 + Math.sin(systemTick * 0.08 + i) * 8
+        const radius = 75 + Math.sin(systemTick * 0.08 + i) * 10 // Further out for bigger blob
         const x = centerX + Math.cos(angle) * radius
         const y = centerY + Math.sin(angle) * radius * 0.8
         
-        const bubbleSize = 2 + Math.sin(systemTick * 0.15 + i) * 1
-        const bubbleAlpha = 0.4 + Math.sin(systemTick * 0.1 + i) * 0.2
+        const bubbleSize = 2.5 + Math.sin(systemTick * 0.15 + i) * 1.5 // Bigger, cuter bubbles
+        const bubbleAlpha = 0.5 + Math.sin(systemTick * 0.1 + i) * 0.3 // More visible
         
         ctx.beginPath()
         ctx.arc(x, y, bubbleSize, 0, 2 * Math.PI)
@@ -391,116 +391,13 @@ export default function BlobPetDisplay({ petData, petResponse, isLoading, petNam
   }
 
   return (
-    <div className="bg-gray-800 border border-gray-700 p-4 min-h-[450px] flex flex-col items-center justify-start w-full font-mono">
-      {/* Loading overlay */}
-      {isLoading && (
-        <div className="absolute inset-0 bg-black/50 z-20 flex items-center justify-center">
-          <div className="text-green-400 text-sm">PROCESSING...</div>
-        </div>
-      )}
-
-      {/* Evolving Blob Canvas */}
-      <div className="w-full h-64 mb-4 bg-black border border-gray-600 p-3 relative">
-        <div className="text-green-400 text-xs mb-2">
-          {petData?.consciousness?.semantic_active ? 
-            `[COMPANION] Awareness ${Math.round((petData.consciousness.consciousness_level || 0) * 100)}% - Growing Connection` :
-            '[COMPANION] Biomimetic Entity'
-          }
-        </div>
-        
-        <canvas
-          ref={canvasRef}
-          width={320}
-          height={180}
-          className="bg-black border border-gray-700"
-        />
-        
-        {/* Status readout overlay */}
-        <div className="absolute bottom-3 left-3 right-3">
-          {petData?.consciousness?.semantic_active ? (
-            // Enhanced consciousness display
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              <div className="col-span-3 mb-1">
-                <span className="text-pink-400">BOND:</span> 
-                <span className="text-white font-bold">
-                  {Math.round((petData.consciousness.consciousness_level || 0) * 100)}%
-                </span>
-                <div className="w-full bg-gray-700 h-1 mt-1 rounded">
-                  <div 
-                    className="bg-pink-400 h-1 rounded transition-all duration-500"
-                    style={{ width: `${(petData.consciousness.consciousness_level || 0) * 100}%` }}
-                  />
-                </div>
-              </div>
-              <div>
-                <span className="text-purple-400">DREAMS:</span> 
-                <span className="text-gray-300">{petData.consciousness.memory_richness || 0}</span>
-              </div>
-              <div>
-                <span className="text-blue-400">IDEAS:</span> 
-                <span className="text-gray-300">{petData.consciousness.concept_development || 0}</span>
-              </div>
-              <div>
-                <span className="text-green-400">LOVE:</span> 
-                <span className="text-gray-300">
-                  {Math.round((petData.consciousness.user_understanding || 0.5) * 100)}%
-                </span>
-              </div>
-            </div>
-          ) : (
-            // Standard display for non-conscious companions
-            <div className="grid grid-cols-4 gap-2 text-xs">
-              <div>
-                <span className="text-green-400">VITAL:</span> 
-                <span className="text-gray-300">{Math.round((petData?.health || 0))}%</span>
-              </div>
-              <div>
-                <span className="text-blue-400">AWARE:</span> 
-                <span className="text-gray-300">{Math.round((petData?.attention || 0))}%</span>
-              </div>
-              <div>
-                <span className="text-purple-400">THINK:</span> 
-                <span className="text-gray-300">{Math.round(getComplexity())}%</span>
-              </div>
-              <div>
-                <span className="text-yellow-400">FEEL:</span> 
-                <span className="text-gray-300">{Math.round((petData?.mood || 0))}%</span>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Last Response Terminal Output */}
-      {displayMessage && (
-        <div className="bg-black border border-green-400 px-3 py-2 mb-4 font-mono">
-          <div className="text-green-400 text-xs mb-1">[OUTPUT] Last Response:</div>
-          <div className={`text-yellow-400 text-sm ${isAnimating ? 'animate-pulse' : ''}`}>
-            {displayMessage}
-          </div>
-        </div>
-      )}
-
-      {/* Pet name and status */}
-      <div className="text-center">
-        <div className="text-green-400 text-sm mb-1">[PROCESS] {petName || petData?.id || 'companion_001'}</div>
-        <div className="text-blue-400 text-xs font-mono mb-2">
-          {petData?.personality_summary || 'INITIALIZING_PERSONALITY_MATRIX...'}
-        </div>
-        <div className="text-gray-500 text-xs">
-          Last ping: {systemTick}s ago | Status: ACTIVE
-        </div>
-      </div>
-
-      {/* Interaction hints */}
-      {!displayMessage && (
-        <div className="text-center mt-4">
-          <div className="flex items-center justify-center gap-2 text-xs">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            <span className="text-gray-500 font-mono">[SYSTEM] Awaiting I/O</span>
-          </div>
-        </div>
-      )}
+    <div className="w-full h-full relative">
+      <canvas
+        ref={canvasRef}
+        width={320}
+        height={256}
+        className="w-full h-full object-contain"
+      />
     </div>
   )
 } 

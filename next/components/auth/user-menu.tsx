@@ -26,7 +26,7 @@ export function UserMenu({ onOpenAuth }: UserMenuProps) {
         onClick={onOpenAuth}
         variant="outline"
         size="sm"
-        className="border-indigo-300 text-slate-600 hover:bg-indigo-100 hover:text-slate-700"
+        className="bg-white border-black text-black hover:bg-black hover:text-white transition-colors"
       >
         <User className="w-4 h-4 mr-2" />
         Sign In
