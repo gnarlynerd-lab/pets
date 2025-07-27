@@ -7,7 +7,6 @@ import { UserMenu } from '@/components/auth/user-menu'
 import { SaveCompanionBanner } from '@/components/save-companion-banner'
 import { ClientOnly } from '@/components/client-only'
 import { useAuth } from '@/contexts/auth-context'
-import BlobPetDisplay from '@/components/blob-pet-display'
 import EmojiPicker from 'emoji-picker-react'
 
 export default function Home() {
@@ -169,33 +168,42 @@ export default function Home() {
           
           {/* Left: Companion Display */}
           <div className="space-y-6">
-            {/* Companion Visual with Blob */}
-            <div className="border border-black h-64 overflow-hidden relative bg-black">
+            {/* Companion Visual */}
+            <div className="border border-black h-64 overflow-hidden relative bg-black flex items-center justify-center">
               {/* Companion Name */}
               <div className="absolute top-4 left-4 z-10">
                 <div className="text-white font-bold text-sm">
                   {companionName}
                 </div>
               </div>
-              <BlobPetDisplay 
-                petData={petData}
-                petResponse={petResponse}
-                isLoading={isLoading}
-                petName={petName}
-              />
+              
+              {/* Large Emoji Display */}
+              <div className="text-center">
+                <div 
+                  className="text-8xl transition-all duration-500"
+                  style={{
+                    animation: isLoading ? 'pulse 1s ease-in-out infinite' : 'breathe 3s ease-in-out infinite',
+                    transform: isLoading ? 'scale(0.95)' : 'scale(1)',
+                  }}
+                >
+                  {isLoading ? '💭' : (petResponse || '😊')}
+                </div>
+                <div className="text-white text-xs mt-4 opacity-70">
+                  {isLoading ? 'thinking...' : 'ready'}
+                </div>
+              </div>
+              
+              {/* Custom CSS for breathing animation */}
+              <style jsx>{`
+                @keyframes breathe {
+                  0%, 100% { transform: scale(1); }
+                  50% { transform: scale(1.05); }
+                }
+              `}</style>
             </div>
 
             {/* Status */}
             <div className="border border-black p-4 space-y-2 text-sm">
-              {/* Last Response */}
-              {petResponse && (
-                <div className="mb-4 pb-4 border-b border-gray-300">
-                  <div className="text-lg mb-1">{petResponse}</div>
-                  <div className="text-xs text-gray-600">
-                    {isLoading ? 'Thinking...' : 'Last response'}
-                  </div>
-                </div>
-              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>Energy: {Math.round(petData?.energy || 0)}%</div>
                 <div>Mood: {Math.round(petData?.mood || 0)}%</div>
