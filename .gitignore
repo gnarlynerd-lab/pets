@@ -205,6 +205,15 @@ fep_test_results.txt
 *_test_results.txt
 *_output.txt
 
+# Development and debug files
+backend/main_fixed.py
+backend/main_minimal.py
+backend/scripts/
+debug_*.py
+minimal_server.py
+start_backend_minimal.py
+test_*.py
+
 # Pet state dumps (keep structure but not specific instances)
 pet_states/
 saved_pets/
@@ -260,6 +269,8 @@ datasets/
 .env.development
 .env.test
 .env.production
+.env.demo
+.env.demo.secure
 
 # Package manager lock files (choose based on your preference)
 # package-lock.json  # Uncomment if using yarn
