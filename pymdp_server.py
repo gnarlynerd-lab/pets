@@ -2,7 +2,7 @@
 """
 Server using PyMDP-based active inference companions
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import uuid
@@ -45,14 +45,28 @@ async def health():
     }
 
 @app.post("/api/simple/session/create")
-async def create_session():
+async def create_session(request_body: dict = Body(default={})):
     session_id = str(uuid.uuid4())
     token = str(uuid.uuid4())
+    
+    # Check if we have saved state to restore
+    saved_state = None
+    if request_body and request_body.get("saved_state"):
+        saved_state = request_body.get("saved_state")
     
     # Create PyMDP-based companion if available
     if PYMDP_AVAILABLE:
         try:
             pymdp_companion = PyMDPEmojiCompanion(session_id)
+            
+            # Restore saved state if provided
+            if saved_state:
+                try:
+                    pymdp_companion.load_state(saved_state)
+                    print(f"Restored companion state for session {session_id}")
+                except Exception as e:
+                    print(f"Failed to restore state: {e}")
+            
             pymdp_companions[session_id] = pymdp_companion
             companion_type = "PyMDP Active Inference"
         except Exception as e:
@@ -137,6 +151,7 @@ async def companion_emoji_interaction(session_id: str, request_body: dict):
                 },
                 "active_inference_stats": interaction_result.get("active_inference_stats", {}),
                 "context_distribution": interaction_result.get("context_distribution", []),
+                "pymdp_state": pymdp_companion.get_state(),  # Include full state for localStorage
                 "pymdp_enabled": True
             }
             

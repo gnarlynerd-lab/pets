@@ -100,11 +100,26 @@ export function useAuthenticatedCompanionState() {
   // Create anonymous session
   const createAnonymousSession = useCallback(async () => {
     try {
+      // Check for saved PyMDP state
+      const savedPyMDPState = typeof window !== 'undefined' ? 
+        localStorage.getItem('emoji-companion-pymdp-state') : null
+      
+      const requestBody: any = {}
+      if (savedPyMDPState) {
+        try {
+          requestBody.saved_state = JSON.parse(savedPyMDPState)
+          console.log('Restoring PyMDP companion state from localStorage')
+        } catch (e) {
+          console.error('Failed to parse saved PyMDP state:', e)
+        }
+      }
+      
       const response = await fetch(`${API_BASE_URL}/api/simple/session/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        body: Object.keys(requestBody).length > 0 ? JSON.stringify(requestBody) : undefined
       })
       
       if (response.ok) {
@@ -316,6 +331,16 @@ export function useAuthenticatedCompanionState() {
           setCompanionData(prev => prev ? { ...prev, ...result.companion_state } : null)
         }
         
+        // Save PyMDP state to localStorage for anonymous users
+        if (!user && result.pymdp_state && typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('emoji-companion-pymdp-state', JSON.stringify(result.pymdp_state))
+            console.log('Saved PyMDP companion state to localStorage')
+          } catch (e) {
+            console.error('Failed to save PyMDP state to localStorage:', e)
+          }
+        }
+        
         return result
       } else {
         const errorText = await response.text()
@@ -390,6 +415,7 @@ export function useAuthenticatedCompanionState() {
           localStorage.removeItem('emoji-companion-session-token')
           localStorage.removeItem('emoji-companion-name')
           localStorage.removeItem('emoji-companion-history')
+          localStorage.removeItem('emoji-companion-pymdp-state')  // Clear PyMDP state too
         }
         
         // Clear anonymous state
