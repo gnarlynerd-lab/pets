@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from 'react'
-import { useAuthenticatedPetState } from '@/hooks/use-authenticated-pet-state'
+import { useAuthenticatedCompanionState } from '@/hooks/use-authenticated-companion-state'
 import { AuthDialog } from '@/components/auth/auth-dialog'
 import { UserMenu } from '@/components/auth/user-menu'
 import { ClientOnly } from '@/components/client-only'
@@ -12,22 +12,22 @@ import EmojiPicker from 'emoji-picker-react'
 export default function Home() {
   const { user } = useAuth()
   const {
-    petData,
+    companionData,
     isLoading,
     sendEmojiInteraction,
-    petResponse,
+    companionResponse,
     interactionHistory,
-    petName,
-    updatePetName,
+    companionName,
+    updateCompanionName,
     isAuthenticated,
     sessionId,
     migrateAnonymousData
-  } = useAuthenticatedPetState()
+  } = useAuthenticatedCompanionState()
 
   const [currentEmoji, setCurrentEmoji] = useState('')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [isEditingName, setIsEditingName] = useState(false)
-  const [tempPetName, setTempPetName] = useState(petName || '')
+  const [tempCompanionName, setTempCompanionName] = useState(companionName || '')
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
   const [migrationStatus, setMigrationStatus] = useState<{ 
     isComplete: boolean
@@ -37,10 +37,10 @@ export default function Home() {
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
 
-  // Update tempPetName when petName changes
+  // Update tempCompanionName when companionName changes
   useEffect(() => {
-    setTempPetName(petName || '')
-  }, [petName])
+    setTempCompanionName(companionName || '')
+  }, [companionName])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -93,14 +93,14 @@ export default function Home() {
   }
 
   const handleNameSave = () => {
-    if (tempPetName.trim()) {
-      updatePetName(tempPetName.trim())
+    if (tempCompanionName.trim()) {
+      updateCompanionName(tempCompanionName.trim())
     }
     setIsEditingName(false)
   }
 
   const handleNameCancel = () => {
-    setTempPetName(petName || '')
+    setTempCompanionName(companionName || '')
     setIsEditingName(false)
   }
 
@@ -109,7 +109,7 @@ export default function Home() {
   }
 
   const quickEmojis = ['👋', '❤️', '😊', '🤔', '👍', '😴', '🍎', '🎮']
-  const companionName = petName || 'Companion'
+  const displayName = companionName || 'Companion'
 
   return (
     <div className="min-h-screen bg-white text-black font-mono">
@@ -129,8 +129,8 @@ export default function Home() {
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
-                    value={tempPetName}
-                    onChange={(e) => setTempPetName(e.target.value)}
+                    value={tempCompanionName}
+                    onChange={(e) => setTempCompanionName(e.target.value)}
                     className="text-2xl font-bold tracking-tight px-2 py-1 border border-black focus:outline-none"
                     placeholder="Companion name..."
                     maxLength={20}
@@ -181,14 +181,14 @@ export default function Home() {
               {/* Companion Name */}
               <div className="absolute top-4 left-4 z-10">
                 <div className="text-white font-bold text-sm">
-                  {companionName}
+                  {displayName}
                 </div>
               </div>
               
               {/* Large Emoji Display */}
               <div className="text-center">
                 <div className="text-8xl animate-pulse">
-                  {isLoading ? '💭' : (petResponse || '😊')}
+                  {isLoading ? '💭' : (companionResponse || '😊')}
                 </div>
               </div>
               
@@ -204,10 +204,10 @@ export default function Home() {
             {/* Status */}
             <div className="border border-black p-4 space-y-2 text-sm">
               <div className="grid grid-cols-2 gap-4">
-                <div>Energy: {Math.round(petData?.energy || 0)}%</div>
-                <div>Mood: {Math.round(petData?.mood || 0)}%</div>
-                <div>Health: {Math.round(petData?.health || 0)}%</div>
-                <div>Attention: {Math.round(petData?.attention || 0)}%</div>
+                <div>Energy: {Math.round(companionData?.energy || 0)}%</div>
+                <div>Mood: {Math.round(companionData?.mood || 0)}%</div>
+                <div>Health: {Math.round(companionData?.health || 0)}%</div>
+                <div>Attention: {Math.round(companionData?.attention || 0)}%</div>
               </div>
             </div>
           </div>
@@ -236,8 +236,8 @@ export default function Home() {
                         <span>{interaction.userEmojis}</span>
                       </div>
                       <div className="flex gap-2">
-                        <span className="font-bold">{companionName}:</span>
-                        <span>{interaction.petResponse}</span>
+                        <span className="font-bold">{displayName}:</span>
+                        <span>{interaction.companionResponse}</span>
                       </div>
                     </div>
                   ))
