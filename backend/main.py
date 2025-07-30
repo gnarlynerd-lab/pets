@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import json
 import uuid
+import os
 from typing import Optional
 
 from backend.models.pet_model import PetModel
@@ -23,6 +24,10 @@ from backend.auth import (
     get_user_by_email, get_password_hash
 )
 from backend.auth.schemas import UserCreate, UserLogin, UserResponse, Token, PasswordChange
+from backend.middleware.demo_auth import DemoAuthMiddleware
+from backend.middleware.rate_limit import RateLimitMiddleware
+from backend.middleware.security_headers import SecurityHeadersMiddleware, EnhancedCORSMiddleware
+from backend.api import demo, anonymous_secure as anonymous, auth as auth_api, simple_anonymous
 from datetime import timedelta, datetime
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -53,14 +58,41 @@ logger = logging.getLogger(__name__)
 # FastAPI app for web API and WebSocket connections
 app = FastAPI(title="DKS Agent System", version="1.0.0")
 
-# Allow CORS for frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Configure CORS based on environment
+cors_origins = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"]
+if os.getenv("CORS_ORIGINS"):
+    cors_origins = os.getenv("CORS_ORIGINS").split(",")
+
+# Add security headers middleware (should be first)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Use enhanced CORS middleware instead of default
+app.add_middleware(EnhancedCORSMiddleware)
+
+# Add demo authentication middleware
+app.add_middleware(DemoAuthMiddleware)
+
+# Add rate limiting middleware
+rate_limiter = RateLimitMiddleware(app)
+app.add_middleware(lambda app: rate_limiter)
+app.state.rate_limiter = rate_limiter
+
+# Include demo routes
+app.include_router(demo.router)
+app.include_router(anonymous.router)
+app.include_router(auth_api.router)
+app.include_router(simple_anonymous.router)
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check for deployment platforms"""
+    return {
+        "status": "healthy",
+        "demo_mode": os.getenv("DEMO_MODE", "false").lower() == "true",
+        "database": "sqlite" if os.getenv("USE_SQLITE", "false").lower() == "true" else "mysql",
+        "timestamp": time.time()
+    }
 
 # Global state
 pet_model: Optional[PetModel] = None
@@ -96,6 +128,9 @@ async def startup_event():
         redis_manager=redis_manager,
         data_collector=data_collector
     )
+    
+    # Store pet_model in app state for access in routes
+    app.state.pet_model = pet_model
     
     # Load any existing pets from database
     try:

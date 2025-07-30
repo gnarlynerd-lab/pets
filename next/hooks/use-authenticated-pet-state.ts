@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/auth-context'
+import { getApiHeaders, getApiUrl } from '@/lib/api-client'
 
 interface PetData {
   id: string
@@ -57,6 +58,7 @@ export function useAuthenticatedPetState() {
   const [petName, setPetName] = useState<string>('')
   const [userPets, setUserPets] = useState<PetData[]>([])
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [sessionToken, setSessionToken] = useState<string | null>(null)
   const [isClient, setIsClient] = useState(false)
 
   // Initialize client state
@@ -70,10 +72,12 @@ export function useAuthenticatedPetState() {
     if (!isClient || typeof window === 'undefined') return
     
     if (!user) {
-      // Load or create session ID
+      // Load or create session ID and token
       const savedSessionId = localStorage.getItem('emoji-pet-session-id')
-      if (savedSessionId) {
+      const savedSessionToken = localStorage.getItem('emoji-pet-session-token')
+      if (savedSessionId && savedSessionToken) {
         setSessionId(savedSessionId)
+        setSessionToken(savedSessionToken)
       }
       
       // Load pet name
@@ -96,7 +100,7 @@ export function useAuthenticatedPetState() {
   // Create anonymous session
   const createAnonymousSession = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/anonymous/session/create`, {
+      const response = await fetch(`${API_BASE_URL}/api/simple/session/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -106,9 +110,11 @@ export function useAuthenticatedPetState() {
       if (response.ok) {
         const data = await response.json()
         setSessionId(data.session_id)
+        setSessionToken(data.token)
         
         if (typeof window !== 'undefined') {
           localStorage.setItem('emoji-pet-session-id', data.session_id)
+          localStorage.setItem('emoji-pet-session-token', data.token)
         }
         
         if (data.pet) {
@@ -123,9 +129,12 @@ export function useAuthenticatedPetState() {
         }
         
         return data.session_id
+      } else {
+        console.error('Failed to create anonymous session:', response.status, response.statusText)
       }
     } catch (error) {
       console.error('Failed to create anonymous session:', error)
+      // Return null to indicate failure, but don't throw to prevent app crashes
     }
     return null
   }, [])
@@ -203,7 +212,11 @@ export function useAuthenticatedPetState() {
           }
         } else {
           // Load existing session pet
-          const response = await fetch(`${API_BASE_URL}/api/anonymous/pets/${sessionId}`)
+          const response = await fetch(`${API_BASE_URL}/api/simple/pets/${sessionId}`, {
+            headers: {
+              'X-Session-Token': sessionToken || ''
+            }
+          })
           if (response.ok) {
             const data = await response.json()
             setPetData(data)
@@ -223,7 +236,7 @@ export function useAuthenticatedPetState() {
     } finally {
       setIsLoading(false)
     }
-  }, [user, token, sessionId, getUserPets, createAnonymousSession])
+  }, [user, token, sessionId, sessionToken, getUserPets, createAnonymousSession])
 
   // Send emoji interaction to backend
   const sendEmojiInteraction = useCallback(async (emojiSequence: string) => {
@@ -267,10 +280,11 @@ export function useAuthenticatedPetState() {
           context: { source: 'frontend' }
         }
         
-        response = await fetch(`${API_BASE_URL}/api/anonymous/pets/${sessionId}/emoji`, {
+        response = await fetch(`${API_BASE_URL}/api/simple/pets/${sessionId}/emoji`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-Session-Token': sessionToken || ''
           },
           body: JSON.stringify(requestBody),
         })
@@ -312,7 +326,7 @@ export function useAuthenticatedPetState() {
     } finally {
       setIsLoading(false)
     }
-  }, [availablePetId, sessionId, user, token])
+  }, [availablePetId, sessionId, sessionToken, user, token])
 
   // Initialize pet data on mount and when auth state changes
   useEffect(() => {
@@ -373,12 +387,14 @@ export function useAuthenticatedPetState() {
         // Clear anonymous data from localStorage after successful migration
         if (isClient && typeof window !== 'undefined') {
           localStorage.removeItem('emoji-pet-session-id')
+          localStorage.removeItem('emoji-pet-session-token')
           localStorage.removeItem('emoji-pet-name')
           localStorage.removeItem('emoji-pet-history')
         }
         
         // Clear anonymous state
         setSessionId(null)
+        setSessionToken(null)
         setInteractionHistory([])
         
         // Refresh pet state to get the migrated data
@@ -418,7 +434,11 @@ export function useAuthenticatedPetState() {
         })
       } else if (sessionId) {
         // Anonymous user
-        response = await fetch(`${API_BASE_URL}/api/anonymous/pets/${sessionId}/memories`)
+        response = await fetch(`${API_BASE_URL}/api/anonymous/pets/${sessionId}/memories`, {
+          headers: {
+            'X-Session-Token': sessionToken || ''
+          }
+        })
       } else {
         return []
       }
@@ -437,7 +457,7 @@ export function useAuthenticatedPetState() {
       console.error('Error fetching memories:', error)
       return []
     }
-  }, [user, token, availablePetId, sessionId])
+  }, [user, token, availablePetId, sessionId, sessionToken])
 
   return {
     petData,

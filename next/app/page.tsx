@@ -4,9 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuthenticatedPetState } from '@/hooks/use-authenticated-pet-state'
 import { AuthDialog } from '@/components/auth/auth-dialog'
 import { UserMenu } from '@/components/auth/user-menu'
-import { SaveCompanionBanner } from '@/components/save-companion-banner'
 import { ClientOnly } from '@/components/client-only'
 import { useAuth } from '@/contexts/auth-context'
+import { DemoBanner } from '@/components/demo-banner'
 import EmojiPicker from 'emoji-picker-react'
 
 export default function Home() {
@@ -113,7 +113,13 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white text-black font-mono">
-      <div className="max-w-4xl mx-auto p-8">
+      {/* Demo Banner */}
+      <DemoBanner 
+        interactionCount={interactionHistory.length}
+        maxInteractions={50}
+      />
+      
+      <div className="max-w-4xl mx-auto p-8 pt-12">
         
         {/* Header with Auth */}
         <div className="border-b border-black pb-4 mb-8">
@@ -152,8 +158,10 @@ export default function Home() {
               )}
             </div>
             
-            {/* User Menu */}
-            <UserMenu onOpenAuth={() => setAuthDialogOpen(true)} />
+            {/* User Menu - Hide in demo mode */}
+            {process.env.NEXT_PUBLIC_DEMO_MODE !== 'true' && (
+              <UserMenu onOpenAuth={() => setAuthDialogOpen(true)} />
+            )}
           </div>
         </div>
 
@@ -179,17 +187,8 @@ export default function Home() {
               
               {/* Large Emoji Display */}
               <div className="text-center">
-                <div 
-                  className="text-8xl transition-all duration-500"
-                  style={{
-                    animation: isLoading ? 'pulse 1s ease-in-out infinite' : 'breathe 3s ease-in-out infinite',
-                    transform: isLoading ? 'scale(0.95)' : 'scale(1)',
-                  }}
-                >
+                <div className="text-8xl animate-pulse">
                   {isLoading ? '💭' : (petResponse || '😊')}
-                </div>
-                <div className="text-white text-xs mt-4 opacity-70">
-                  {isLoading ? 'thinking...' : 'ready'}
                 </div>
               </div>
               
@@ -269,20 +268,28 @@ export default function Home() {
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10"/>
-                      <path d="8 14s1.5 2 4 2 4-2 4-2"/>
+                      <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
                       <circle cx="9" cy="9" r="1" fill="white"/>
                       <circle cx="15" cy="9" r="1" fill="white"/>
                     </svg>
                   </button>
                   {showEmojiPicker && (
-                    <div className="absolute bottom-full mb-2 right-0 z-50">
+                    <div className="absolute bottom-full mb-2 right-0 z-[9999] shadow-2xl">
                       <EmojiPicker
                         onEmojiClick={onEmojiClick}
-                        height={350}
-                        width={300}
-                        searchDisabled
-                        skinTonesDisabled
+                        height={250}
+                        width={250}
+                        searchDisabled={true}
+                        skinTonesDisabled={true}
                         previewConfig={{ showPreview: false }}
+                        lazyLoadEmojis={true}
+                        emojiStyle="native"
+                        categories={[
+                          'smileys_people',
+                          'animals_nature',
+                          'food_drink',
+                          'activities'
+                        ]}
                       />
                     </div>
                   )}
@@ -303,7 +310,7 @@ export default function Home() {
             {/* Stats */}
             <div className="border border-black p-4 text-xs space-y-2">
               <div>Total interactions: {interactionHistory.length}</div>
-              <div>Session: {isAuthenticated ? 'Authenticated' : 'Anonymous'}</div>
+              <div>Session: {process.env.NEXT_PUBLIC_DEMO_MODE === 'true' ? 'Demo' : (isAuthenticated ? 'Authenticated' : 'Anonymous')}</div>
               <div>Connection: Active</div>
             </div>
           </div>
@@ -322,16 +329,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Save Companion Banner for anonymous users */}
-      <ClientOnly>
-        {!isAuthenticated && (
-          <SaveCompanionBanner
-            onSignIn={() => setAuthDialogOpen(true)}
-            petName={petName}
-            interactionCount={interactionHistory.length}
-          />
-        )}
-      </ClientOnly>
 
       {/* Migration Success Notification */}
       <ClientOnly>

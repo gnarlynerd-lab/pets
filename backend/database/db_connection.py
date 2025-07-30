@@ -19,7 +19,8 @@ MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", "dks_petworld")
 USE_SQLITE = os.getenv("USE_SQLITE", "false").lower() == "true"
 
 if USE_SQLITE:
-    DATABASE_URL = "sqlite:///dks_development.db"
+    SQLITE_DB_PATH = os.getenv("SQLITE_DB_PATH", "dks_development.db")
+    DATABASE_URL = f"sqlite:///{SQLITE_DB_PATH}"
 else:
     DATABASE_URL = f"mysql+mysqlconnector://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}"
 

@@ -20,6 +20,12 @@ class RedisManager:
         
     async def initialize(self):
         """Initialize Redis connection"""
+        # Check if Redis is disabled
+        if os.getenv('DISABLE_REDIS', 'false').lower() == 'true':
+            logger.info("Redis disabled, using in-memory message queue")
+            self.redis_client = None
+            return
+            
         try:
             self.redis_client = redis.from_url(self.redis_url, decode_responses=True)
             
@@ -28,8 +34,8 @@ class RedisManager:
             logger.info(f"Connected to Redis at {self.redis_url}")
             
         except Exception as e:
-            logger.error(f"Failed to connect to Redis: {e}")
-            raise
+            logger.warning(f"Failed to connect to Redis: {e}. Continuing without Redis.")
+            self.redis_client = None
     
     async def close(self):
         """Close Redis connections"""

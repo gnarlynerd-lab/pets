@@ -85,6 +85,20 @@ class PetState(Base):
         )
 
 
+class InteractionHistory(Base):
+    """Interaction history for tracking all pet interactions"""
+    __tablename__ = "interaction_history"
+    
+    id = Column(String(100), primary_key=True, default=lambda: str(uuid.uuid4()))
+    pet_id = Column(String(100), nullable=False)
+    user_id = Column(String(100), nullable=True)
+    session_id = Column(String(100), nullable=True)
+    interaction_type = Column(String(50), nullable=False)
+    input_data = Column(JSON, nullable=False)
+    output_data = Column(JSON, nullable=False)
+    timestamp = Column(TIMESTAMP, server_default=func.current_timestamp())
+
+
 class PetInteraction(Base):
     """Pet interaction history model."""
     __tablename__ = "pet_interactions"

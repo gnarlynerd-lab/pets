@@ -59,6 +59,7 @@ class OpenAIProvider(BaseLLMProvider):
     async def generate_response(self, prompt: str, max_tokens: int = 500) -> LLMResponse:
         """Generate response using OpenAI API"""
         if not self.is_available():
+            logger.debug("OpenAI provider not configured - missing API key")
             raise ValueError("OpenAI provider not configured - missing API key")
         
         import time
